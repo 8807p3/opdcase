@@ -1,0 +1,30 @@
+# 工作紀錄 (WORKLOG)
+
+## 2026-11-25｜兒青門診 看診前調查表 ＆《314風神學院》衛教推薦系統上線
+
+### 完成項目
+1. **問卷與衛教推薦前端**（`index.html`、`assets/app.js`、`assets/search.js`、`assets/style.css`）
+   - 數位化「兒青門診 看診前調查表」（基本資訊、Q1 看診狀況、Q2 假日服藥與剩餘藥量、近期狀況複選、評估／診斷證明需求）。
+   - 內建自傷風險即時提醒（勾選「傷害自己」時顯示 1925 安心專線與立即通知診間人員提醒）。
+   - 整合《314風神學院》（`https://goodadhd.blogspot.com/`）**292 篇完整文章**索引（`data/posts.json`，已補抓 `Read more` 截斷內文並過濾過短／非衛教文章）。
+   - 加入停用詞與 IDF 稀有度加權搜尋，並支援「補充說明或延伸提問」對話框（含可點擊文章連結）。
+2. **醫師端診間即時看板**（`doctor.html`、`assets/doctor.js`）
+   - 密碼保護（`DOCTOR_PIN` 設定於 `assets/config.js`），每 15 秒自動更新今日登記名單、支援「標記已看診」與篩選。
+   - 內建「門診填寫開關」（一鍵切換開放／關閉填寫），非門診時段自動隱藏問卷並保留免費關鍵字搜尋。
+   - 看板上方直接顯示「個案填寫網址」與「複製網址」按鈕。
+3. **Google Apps Script 後端與 Gemini AI 導讀**（`gas/Code.gs`、`gas/appsscript.json`）
+   - 已透過 `clasp` 綁定並部署至版本 `@5`（首次執行自動建立 `兒青門診登記表` Google 試算表）。
+   - 整合 Gemini 2.5 Flash 進行適配度判斷（不適合不硬塞）與 200～300 字原文導讀及追問補充。
+4. **GitHub Pages ＆ 自動同步部署**（`8807p3/opdcase`）
+   - 已完成 `gh` CLI 認證與 GitHub Pages（`main` 分支）部署。
+   - 已設定 `.github/workflows/sync-blog.yml` 每日凌晨自動同步部落格新文章，並啟用 GitHub Actions `write` 權限。
+
+---
+
+### 正式網址與維運資訊
+- **家長／個案填寫網址（QR code）**：https://8807p3.github.io/opdcase/
+- **醫師端診間看板網址**：https://8807p3.github.io/opdcase/doctor.html
+- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@5`）
+- **日常更新指令**：
+  - 前端修改：`git add . && git commit -m "update" && git push`
+  - GAS 修改：`cd gas && clasp push -f && clasp deploy -i AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`
