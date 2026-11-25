@@ -369,6 +369,46 @@ function handleFollowUpChat_(message, history, candidates, lang) {
   };
 }
 
+function rewriteTherapyNote_(targetType, currentNote, contextText) {
+  const isSupportive = targetType === "Supportive";
+  const typeLabel = isSupportive
+    ? "Supportive Psychotherapy"
+    : "Re-educative Psychotherapy";
+  const styleGuide = isSupportive
+    ? "重點放在：情緒承接與同理、減輕症狀與教養壓力負荷、維繫治療聯盟與疾病適應支持。"
+    : "重點放在：病識感建立、認知再架構、具體行為修正與環境／執行功能適應技巧引導。";
+
+  const prompt = [
+    `請將以下兒童青少年精神科心理治療紀錄草稿改寫為「${typeLabel}」格式（繁體中文）。`,
+    styleGuide,
+    "嚴格遵守：",
+    "1. 不可出現「衛教」、「看文章」、「部落格」等字眼。",
+    "2. 嚴禁虛構尚未發生的診間對話或個案反應，只依據既有事實與臨床切入點撰寫。",
+    "3. 格式嚴格為：",
+    `治療標題：${typeLabel} - <具體主題>`,
+    "相關內容記載：<約 60～120 字>",
+    "",
+    `【原紀錄】\n${currentNote || "（無）"}`,
+    `【個案補充背景】\n${contextText || "（無）"}`,
+  ].join("\n");
+
+  const parsed = callGeminiJson_(
+    prompt,
+    {
+      type: "OBJECT",
+      properties: {
+        therapyNote: { type: "STRING" },
+      },
+      required: ["therapyNote"],
+    },
+    0.2
+  );
+
+  return parsed && parsed.therapyNote
+    ? String(parsed.therapyNote).trim()
+    : "";
+}
+
 function updateRowOnFollowUp_(sheet, targetId, noteText, newTherapyNote, newTitles) {
   if (!targetId) return;
   const rows = sheet.getDataRange().getValues();
@@ -413,6 +453,28 @@ function doPost(e) {
     }
 
     const sheet = getOrCreateSheet_();
+
+    if (payload.action === "rewriteTherapyNote") {
+      const targetId = String(payload.id || "");
+      const targetType =
+        payload.targetType === "Supportive" ? "Supportive" : "Re-educative";
+      const newNote = rewriteTherapyNote_(
+        targetType,
+        String(payload.currentNote || ""),
+        String(payload.context || "")
+      );
+      if (!newNote) {
+        return jsonResponse_({ ok: false, error: "改寫失敗，請稍後再試" });
+      }
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][14]) === targetId) {
+          sheet.getRange(i + 1, 13).setValue(newNote);
+          return jsonResponse_({ ok: true, id: targetId, therapyNote: newNote });
+        }
+      }
+      return jsonResponse_({ ok: false, error: "找不到該筆資料" });
+    }
 
     if (payload.action === "markDone") {
       const targetId = String(payload.id || "");

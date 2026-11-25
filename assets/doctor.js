@@ -239,17 +239,30 @@
             }
             ${
               r.therapyNote
-                ? `<div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #1f6f78;border-radius:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;">
-                      <strong style="color:#16535a;font-size:0.88rem;">🧠 心理治療紀錄草稿（Supportive / Re-educative）</strong>
-                      <button type="button" class="btn btn-secondary btn-sm copy-note-btn" data-note-id="${escapeHtml(
-                        r.id
-                      )}" style="padding:3px 9px;font-size:0.78rem;">複製紀錄</button>
+                ? (() => {
+                    const isCurrentlySupportive =
+                      /Supportive\s+Psychotherapy/i.test(r.therapyNote) &&
+                      !/Re-educative/i.test(r.therapyNote.split("\n")[0] || "");
+                    const nextType = isCurrentlySupportive
+                      ? "Re-educative"
+                      : "Supportive";
+                    return `<div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #1f6f78;border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
+                      <strong style="color:#16535a;font-size:0.88rem;">🧠 心理治療紀錄草稿</strong>
+                      <div style="display:flex;gap:6px;">
+                        <button type="button" class="btn btn-secondary btn-sm switch-note-btn" data-note-id="${escapeHtml(
+                          r.id
+                        )}" data-target-type="${nextType}" style="padding:3px 9px;font-size:0.78rem;">切換為 ${nextType}</button>
+                        <button type="button" class="btn btn-secondary btn-sm copy-note-btn" data-note-id="${escapeHtml(
+                          r.id
+                        )}" style="padding:3px 9px;font-size:0.78rem;">複製紀錄</button>
+                      </div>
                     </div>
                     <div style="white-space:pre-line;font-size:0.88rem;color:#334155;line-height:1.55;">${escapeHtml(
                       r.therapyNote
                     )}</div>
-                  </div>`
+                  </div>`;
+                  })()
                 : ""
             }
           </div>
@@ -261,6 +274,57 @@
     recordsList.querySelectorAll("button[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => {
         toggleDone(btn.dataset.id, btn.dataset.next);
+      });
+    });
+
+    recordsList.querySelectorAll(".switch-note-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.noteId;
+        const targetType = btn.dataset.targetType;
+        const rec = currentRecords.find((item) => item.id === id);
+        if (!rec) return;
+
+        const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+        if (!gasUrl) {
+          rec.therapyNote =
+            targetType === "Supportive"
+              ? "治療標題：Supportive Psychotherapy - 情緒支持與親子壓力調適\n相關內容記載：針對個案近期情緒挫折與互動壓力，予以情緒同理與支持，協助家長緩解教養焦慮並維繫治療聯盟。"
+              : "治療標題：Re-educative Psychotherapy - 注意力轉移與執行功能因應策略\n相關內容記載：針對個案近期寫作業拖延與情緒煩躁情形，協助家長釐清注意力轉換困難之機轉，並引導建立分段任務與正向回饋等行為因應策略。";
+          renderRecords();
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "轉換中…";
+        try {
+          const context = [
+            ...(rec.issues || []),
+            rec.otherDetail || "",
+          ]
+            .filter(Boolean)
+            .join("；");
+          const resp = await fetch(gasUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "rewriteTherapyNote",
+              id,
+              targetType,
+              currentNote: rec.therapyNote,
+              context,
+            }),
+          });
+          const json = await resp.json();
+          if (!json.ok || !json.therapyNote) {
+            throw new Error(json.error || "轉換失敗");
+          }
+          rec.therapyNote = json.therapyNote;
+          renderRecords();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = `切換為 ${targetType}`;
+          alert("轉換治療紀錄失敗，請稍後再試");
+        }
       });
     });
 
