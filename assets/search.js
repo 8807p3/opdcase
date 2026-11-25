@@ -43,6 +43,18 @@
     ["診斷證明", "特教", "鑑定", "心理衡鑑", "資源班"],
   ];
 
+  const VI_TO_ZH_HINTS = [
+    ["đánh bạn", "cãi nhau", "trêu", "bạn bè", "đánh nhau", "霸凌 人際 同學 吵架"],
+    ["người nhà", "anh em", "chị em", "gia đình", "bố mẹ", "親子 手足 家人 爭執"],
+    ["nổi nóng", "tức giận", "cáu", "không nghe", "bướng", "生氣 情緒 發脾氣 講不聽"],
+    ["thuốc", "uống thuốc", "tác dụng phụ", "cuối tuần", "藥物 服藥 吃藥 副作用"],
+    ["ăn", "chán ăn", "không muốn ăn", "gầy", "食慾 吃不下 沒胃口 體重"],
+    ["bài tập", "trì hoãn", "chậm", "tập trung", "quên", "作業 拖延 專注 分心 執行功能"],
+    ["ngủ", "mất ngủ", "khó ngủ", "thức khuya", "睡眠 失眠 睡不著"],
+    ["dậy thì", "cấp 2", "cấp 3", "điện thoại", "game", "青春期 國中 高中 手機 網路"],
+    ["đánh giá", "giấy chứng nhận", "chẩn đoán", "評估 診斷證明 鑑定"],
+  ];
+
   let cachedPosts = null;
 
   async function loadPosts() {
@@ -71,9 +83,19 @@
       }
     }
 
-    // 2. Tokenize free-text query
-    const cleaned = (query || "")
-      .replace(/[，。！？、；：「」『』（）()／\n\r/]/g, " ")
+    // 2. Tokenize free-text query (augment with Chinese hints if Vietnamese terms appear)
+    let augmentedQuery = query || "";
+    const lowerRaw = augmentedQuery.toLowerCase();
+    for (const row of VI_TO_ZH_HINTS) {
+      const zhHints = row[row.length - 1];
+      const viTerms = row.slice(0, -1);
+      if (viTerms.some((vt) => lowerRaw.includes(vt))) {
+        augmentedQuery += " " + zhHints;
+      }
+    }
+
+    const cleaned = augmentedQuery
+      .replace(/[，。！？、；：「」『』（）()／,.!?\n\r/]/g, " ")
       .trim()
       .toLowerCase();
 

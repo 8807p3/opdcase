@@ -39,6 +39,51 @@
   let currentRecordId = "";
   let chatHistory = [];
   let lastSubmittedData = null;
+  let currentLang = "zh";
+
+  function t(key, ...args) {
+    const dict =
+      (window.CLINIC_I18N && window.CLINIC_I18N[currentLang]) ||
+      (window.CLINIC_I18N && window.CLINIC_I18N.zh) ||
+      {};
+    const val = dict[key];
+    return typeof val === "function" ? val(...args) : val || "";
+  }
+
+  function applyLanguage(lang) {
+    currentLang = lang === "vi" ? "vi" : "zh";
+    try {
+      localStorage.setItem("clinic_lang", currentLang);
+    } catch (e) {}
+
+    document.documentElement.lang = currentLang === "vi" ? "vi" : "zh-Hant";
+    document.title = t("pageTitle");
+
+    document.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.lang === currentLang);
+    });
+
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const txt = t(el.dataset.i18n);
+      if (txt) el.textContent = txt;
+    });
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+      const htmlStr = t(el.dataset.i18nHtml);
+      if (htmlStr) el.innerHTML = htmlStr;
+    });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => {
+      const ph = t(el.dataset.i18nPh);
+      if (ph) el.placeholder = ph;
+    });
+
+    if (liveArticlesBox && liveArticlesBox.children.length === 0) {
+      liveArticlesHint.textContent = t("liveHintDefault");
+    }
+  }
+
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applyLanguage(btn.dataset.lang));
+  });
 
   // Highlight selected pills visually
   function syncPillStyles() {
@@ -151,8 +196,7 @@
     const freeText = buildFreeTextQuery();
     if (selectedIssues.length === 0 && !freeText) {
       liveArticlesBox.innerHTML = "";
-      liveArticlesHint.textContent =
-        "勾選上方狀況或在下方輸入想問的問題，系統會自動從《314風神學院》推薦相關衛教文章。";
+      liveArticlesHint.textContent = t("liveHintDefault");
       return [];
     }
 
@@ -163,16 +207,15 @@
         selectedIssues
       );
       if (posts.length > 0) {
-        liveArticlesHint.textContent = `為您找到 ${posts.length} 篇《314風神學院》相關文章，候診時可先點閱：`;
+        liveArticlesHint.textContent = t("liveHintFound", posts.length);
         renderArticles(liveArticlesBox, posts);
       } else {
-        liveArticlesHint.textContent =
-          "目前沒有完全對應的部落格文章，您送出後可直接與醫師於診間討論。";
+        liveArticlesHint.textContent = t("liveHintNone");
         liveArticlesBox.innerHTML = "";
       }
       return posts;
     } catch (err) {
-      liveArticlesHint.textContent = "文章索引載入中，請稍候再試。";
+      liveArticlesHint.textContent = t("liveHintDefault");
       return [];
     }
   }
@@ -228,33 +271,35 @@
 
   function renderSummaryCard(data) {
     const statusBadge = data.selfHarm
-      ? '<span class="badge badge-danger">⚠️ 需優先關懷（自傷風險）</span>'
+      ? `<span class="badge badge-danger">${escapeHtml(t("sumBadgeDanger"))}</span>`
       : data.q1 === "要與醫師討論" || data.recentStatus === "狀況仍不穩定"
-      ? '<span class="badge badge-discuss">需與醫師討論</span>'
-      : '<span class="badge badge-stable">狀況穩定</span>';
+      ? `<span class="badge badge-discuss">${escapeHtml(t("sumBadgeDiscuss"))}</span>`
+      : `<span class="badge badge-stable">${escapeHtml(t("sumBadgeStable"))}</span>`;
 
     summaryCard.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <strong style="font-size:1.15rem;">${escapeHtml(data.childName || "未填寫姓名/診號")}</strong>
+        <strong style="font-size:1.15rem;">${escapeHtml(
+          data.childName || t("sumUnfilled")
+        )}</strong>
         ${statusBadge}
       </div>
       <div class="summary-grid">
         <div class="summary-row">
-          <span class="summary-label">同來家長</span>
-          ${escapeHtml(data.parent || "未選擇")}
+          <span class="summary-label">${escapeHtml(t("sumParent"))}</span>
+          ${escapeHtml(data.parent || t("sumUnselected"))}
         </div>
         <div class="summary-row">
-          <span class="summary-label">Q1 這次看診狀況</span>
-          ${escapeHtml(data.q1 || "未選擇")}
+          <span class="summary-label">${escapeHtml(t("sumQ1"))}</span>
+          ${escapeHtml(data.q1 || t("sumUnselected"))}
         </div>
         <div class="summary-row">
-          <span class="summary-label">Q2 假日服藥 ／ 剩餘藥量</span>
-          ${escapeHtml(data.q2 || "未選擇")}${
-            data.medDays ? `（約剩 ${escapeHtml(data.medDays)} 天）` : ""
+          <span class="summary-label">${escapeHtml(t("sumQ2"))}</span>
+          ${escapeHtml(data.q2 || t("sumUnselected"))}${
+            data.medDays ? escapeHtml(t("sumMedDays", data.medDays)) : ""
           }
         </div>
         <div class="summary-row">
-          <span class="summary-label">近期狀況</span>
+          <span class="summary-label">${escapeHtml(t("sumRecent"))}</span>
           ${escapeHtml(data.recentStatus)}
           ${
             data.issues.length > 0
@@ -266,16 +311,16 @@
         </div>
         ${
           data.otherDetail
-            ? `<div class="summary-row"><span class="summary-label">其他補充／想問醫師</span>${escapeHtml(
-                data.otherDetail
-              )}</div>`
+            ? `<div class="summary-row"><span class="summary-label">${escapeHtml(
+                t("sumOther")
+              )}</span>${escapeHtml(data.otherDetail)}</div>`
             : ""
         }
         ${
           data.needCert
-            ? `<div class="summary-row"><span class="summary-label">評估／診斷證明需求</span>${escapeHtml(
-                data.certDetail || "需要（未填寫細節）"
-              )}</div>`
+            ? `<div class="summary-row"><span class="summary-label">${escapeHtml(
+                t("sumCert")
+              )}</span>${escapeHtml(data.certDetail || t("sumCertEmpty"))}</div>`
             : ""
         }
       </div>
@@ -294,6 +339,7 @@
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "submit",
+          lang: currentLang,
           data,
           questionText,
           candidates: (candidates || []).slice(0, 3).map((p) => ({
@@ -389,28 +435,22 @@
         renderSummaryCard(lastSubmittedData);
       }
       if (matchedPosts.length > 0) {
-        appendChatBubble(
-          "bot",
-          "已將您的補充記在看診重點小卡中！另外找到相關文章提供參考：",
-          matchedPosts.slice(0, 2)
-        );
+        appendChatBubble("bot", t("chatOfflineWithArticle"), matchedPosts.slice(0, 2));
       } else {
-        appendChatBubble(
-          "bot",
-          "已將您的補充記在看診重點小卡中！這個問題看診時將由醫師親自為您說明。"
-        );
+        appendChatBubble("bot", t("chatOfflineSaved"));
       }
       return;
     }
 
     chatSendBtn.disabled = true;
-    chatSendBtn.textContent = "處理中…";
+    chatSendBtn.textContent = t("btnSending");
     try {
       const resp = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "chat",
+          lang: currentLang,
           id: currentRecordId,
           message: msg,
           history: chatHistory,
@@ -422,21 +462,17 @@
         }),
       });
       const json = await resp.json();
-      const replyText =
-        json.reply || "已幫您記錄給醫師，看診時將由醫師親自為您說明。";
+      const replyText = json.reply || t("chatFallbackReply");
       const replyLinks =
         json.selectedUrls && json.selectedUrls.length > 0
           ? aiCandidates.filter((p) => json.selectedUrls.includes(p.url))
           : [];
       appendChatBubble("bot", replyText, replyLinks);
     } catch (err) {
-      appendChatBubble(
-        "bot",
-        "網路暫時不穩，建議您進診間時直接口頭補充給醫師即可。"
-      );
+      appendChatBubble("bot", t("chatNetErr"));
     } finally {
       chatSendBtn.disabled = false;
-      chatSendBtn.textContent = "送出";
+      chatSendBtn.textContent = t("btnChatSend");
     }
   }
 
@@ -476,8 +512,7 @@
     } else {
       resultGuideSection.classList.remove("hidden");
       chatSection.classList.remove("hidden");
-      resultArticlesHint.textContent =
-        "🤖 正在為您閱讀《314風神學院》相關文章並整理重點…";
+      resultArticlesHint.textContent = t("guideLoading");
       renderArticles(resultArticlesBox, posts);
     }
 
@@ -486,14 +521,13 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     submitStatus.className = "alert alert-info";
-    submitStatus.textContent = "正在傳送資料給診間…";
+    submitStatus.textContent = t("statusSending");
 
     const res = await sendToGas(data, questionText, aiCandidates);
     currentRecordId = res.id || "";
     if (res.ok) {
       submitStatus.className = "alert alert-info";
-      submitStatus.textContent =
-        "✅ 已傳送給診間醫師！請在候診區稍候。";
+      submitStatus.textContent = t("statusSent");
     } else if (res.reason === "closed") {
       resultView.classList.add("hidden");
       formView.classList.add("hidden");
@@ -501,12 +535,10 @@
       return;
     } else if (res.reason === "no_gas") {
       submitStatus.className = "alert alert-warning";
-      submitStatus.textContent =
-        "📋 已為您整理好看診重點小卡，進診間時請出示此畫面給醫師參考。";
+      submitStatus.textContent = t("statusNoGas");
     } else {
       submitStatus.className = "alert alert-warning";
-      submitStatus.textContent =
-        "⚠️ 網路傳送暫時異常，但您的看診重點小卡已整理完成，進診間時可直接出示此畫面給醫師。";
+      submitStatus.textContent = t("statusNetErr");
     }
 
     if (data.selfHarm) return;
@@ -518,27 +550,22 @@
       const selectedSet = new Set(aiGuide.selectedUrls || []);
       const chosenPosts = aiCandidates.filter((p) => selectedSet.has(p.url));
       const displayPosts = chosenPosts.length > 0 ? chosenPosts : posts.slice(0, 2);
-      resultArticlesHint.textContent = "📖 延伸閱讀（《314風神學院》原文連結）：";
+      resultArticlesHint.textContent = t("guideLinksLabel");
       renderArticles(resultArticlesBox, displayPosts);
     } else if (aiGuide && aiGuide.suitable === false) {
-      resultArticlesHint.textContent =
-        "您的問題較為個別化，系統已完整記錄給醫師，看診時將由醫師親自為您解答與討論。";
+      resultArticlesHint.textContent = t("guideNotSuitable");
       resultArticlesBox.innerHTML = "";
     } else if (posts.length > 0) {
-      resultArticlesHint.textContent = "來自醫師部落格《314風神學院》：";
+      resultArticlesHint.textContent = t("guideDefaultLabel");
       renderArticles(resultArticlesBox, posts);
     } else {
-      resultArticlesHint.textContent =
-        "已記錄您的狀況，看診時將由醫師親自與您討論。";
+      resultArticlesHint.textContent = t("guideRecordedOnly");
     }
 
     if (aiGuide && aiGuide.followUpQuestion) {
       appendChatBubble("bot", aiGuide.followUpQuestion);
     } else if (data.otherDetail && posts.length === 0) {
-      appendChatBubble(
-        "bot",
-        "為了讓醫師更了解剛才您提到的狀況，方便補充一下大約持續多久、發生頻率，或當時的情境嗎？"
-      );
+      appendChatBubble("bot", t("defaultFollowUp"));
     }
   });
 
@@ -580,6 +607,18 @@
       // Keep form usable if status check fails
     }
   }
+
+  // Initialize language (saved preference or browser Vietnamese detection)
+  let initLang = "zh";
+  try {
+    const saved = localStorage.getItem("clinic_lang");
+    if (saved === "vi" || saved === "zh") {
+      initLang = saved;
+    } else if ((navigator.language || "").toLowerCase().startsWith("vi")) {
+      initLang = "vi";
+    }
+  } catch (e) {}
+  applyLanguage(initLang);
 
   // Preload blog index & check clinic status
   window.BlogSearch.loadPosts().catch(() => {});

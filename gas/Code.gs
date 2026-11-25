@@ -202,12 +202,13 @@ function callGeminiJson_(prompt, responseSchema, temperature) {
   return null;
 }
 
-function generateBlogGuide_(questionText, candidates) {
-  if (!questionText || !candidates || candidates.length === 0) {
+function generateBlogGuide_(questionText, candidates, lang) {
+  if (!questionText && (!candidates || candidates.length === 0)) {
     return null;
   }
 
-  const articlesBlock = candidates
+  const isVi = lang === "vi";
+  const articlesBlock = (candidates || [])
     .slice(0, 3)
     .map(
       (c, idx) =>
@@ -217,21 +218,29 @@ function generateBlogGuide_(questionText, candidates) {
 
   const prompt = [
     "你是兒童青少年精神科門診的衛教導讀編輯，正在協助候診的家長閱讀林醫師部落格《314風神學院》的文章。",
+    isVi
+      ? "【語言要求】家長使用越南語（Tiếng Việt），請將 summary 與 followUpQuestion 全部用自然溫暖的「越南語」撰寫；但 therapyNote 與 translatedOtherDetail 必須使用「繁體中文」給醫師看。"
+      : "【語言要求】家長使用繁體中文，summary、followUpQuestion 與 therapyNote 皆使用繁體中文。",
     "請根據「家長的問題與狀況」以及「候選文章內容」，嚴格遵守以下規則：",
     "1. 先判斷候選文章是否真的能回答家長的問題。若只是擦邊球、不相關，或家長問的是高度個別化的調藥/劑量問題，請將 suitable 設為 false，不要硬塞文章。",
-    "2. 若 suitable 為 true，請『只根據提供的文章內容』撰寫一段 200～300 字的繁體中文導讀，語氣溫暖好讀，禁止自行編造原文以外的醫療建議或劑量指示。結尾請固定加上：「更多資訊請點選下面連結：」",
+    isVi
+      ? "2. 若 suitable 為 true，請『只根據提供的文章內容』用越南語撰寫一段 200～300 字的導讀，語氣溫暖好讀，禁止自行編造原文以外的醫療建議或劑量指示。結尾請固定加上：「Xem thêm thông tin tại liên kết bên dưới:」"
+      : "2. 若 suitable 為 true，請『只根據提供的文章內容』撰寫一段 200～300 字的繁體中文導讀，語氣溫暖好讀，禁止自行編造原文以外的醫療建議或劑量指示。結尾請固定加上：「更多資訊請點選下面連結：」",
     "3. selectedUrls 請填入最相關的 1～2 篇文章連結（必須完全符合上方提供的連結）。",
     "4. 如果家長的問題寫得比較籠統（例如「最近不太好」、「老師說偷東西」、「情緒不好」），或沒有適合的文章，請在 followUpQuestion 提出 1～2 個簡短、好回答的事實釐清問題（例如發生頻率、持續多久、誘發情境），幫醫師先收集脈絡；若問題已很明確且有適合文章，followUpQuestion 可留空字串。",
-    "5. 請在 therapyNote 產生一段符合台灣精神科門診病歷記載規範的「支持性／再教育性心理治療紀錄草稿」，嚴格遵守以下原則：",
+    "5. 請在 therapyNote 產生一段符合台灣精神科門診病歷記載規範的「支持性／再教育性心理治療紀錄草稿」（必須用繁體中文），嚴格遵守以下原則：",
     "   - 不可出現「衛教」、「看文章」、「部落格」等字眼（健保審查會將純衛教視為一般診察而不予給付），請轉化為心理治療技術用語（如：情緒支持與同理、挫折耐受度引導、認知再架構、行為因應策略訓練、親子溝通界線建立、病識感與治療順從性強化）。",
     "   - 嚴禁虛構尚未發生的診間對話或個案反應！只根據家長已知的主訴與本次心理治療介入方向撰寫。",
     "   - 格式嚴格為：",
     "治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy） - <具體主題>",
     "相關內容記載：<簡潔個別化的焦點與心理治療介入方向，約 60～120 字>",
+    isVi
+      ? "6. 若家長的問題中含有越南語文字，請在 translatedOtherDetail 提供精確的繁體中文翻譯；若無則留空字串。"
+      : "6. translatedOtherDetail 請留空字串。",
     "",
-    `【家長的問題與狀況】\n${questionText}`,
+    `【家長的問題與狀況】\n${questionText || "（無）"}`,
     "",
-    `【候選文章】\n${articlesBlock}`,
+    articlesBlock ? `【候選文章】\n${articlesBlock}` : "【候選文章】\n（無）",
   ].join("\n");
 
   const parsed = callGeminiJson_(
@@ -243,6 +252,7 @@ function generateBlogGuide_(questionText, candidates) {
         summary: { type: "STRING" },
         followUpQuestion: { type: "STRING" },
         therapyNote: { type: "STRING" },
+        translatedOtherDetail: { type: "STRING" },
         selectedUrls: {
           type: "ARRAY",
           items: { type: "STRING" },
@@ -253,6 +263,7 @@ function generateBlogGuide_(questionText, candidates) {
         "summary",
         "followUpQuestion",
         "therapyNote",
+        "translatedOtherDetail",
         "selectedUrls",
       ],
     },
@@ -265,18 +276,22 @@ function generateBlogGuide_(questionText, candidates) {
     summary: String(parsed.summary || "").trim(),
     followUpQuestion: String(parsed.followUpQuestion || "").trim(),
     therapyNote: String(parsed.therapyNote || "").trim(),
+    translatedOtherDetail: String(parsed.translatedOtherDetail || "").trim(),
     selectedUrls: Array.isArray(parsed.selectedUrls)
       ? parsed.selectedUrls
       : [],
   };
 }
 
-function handleFollowUpChat_(message, history, candidates) {
+function handleFollowUpChat_(message, history, candidates, lang) {
+  const isVi = lang === "vi";
   if (!message) {
     return {
-      reply:
-        "已幫您把這段補充記錄下來，等一下進診間時醫師會親自為您說明與討論。",
+      reply: isVi
+        ? "Đã ghi nhận thông tin bổ sung cho bác sĩ. Khi vào khám bác sĩ sẽ trao đổi trực tiếp với bạn."
+        : "已幫您把這段補充記錄下來，等一下進診間時醫師會親自為您說明與討論。",
       therapyNote: "",
+      translatedMessage: "",
       selectedUrls: [],
     };
   }
@@ -296,13 +311,19 @@ function handleFollowUpChat_(message, history, candidates) {
 
   const prompt = [
     "你是兒童青少年精神科門診的候診小幫手，正在與候診中的家長對話。",
+    isVi
+      ? "【語言要求】家長使用越南語（Tiếng Việt），reply 請用自然溫暖的「越南語」回覆；therapyNote 與 translatedMessage 必須使用「繁體中文」給醫師看。"
+      : "【語言要求】請使用繁體中文回覆。",
     "家長可能有兩種情況：",
     "A. 回答你剛才的釐清追問（補充孩子狀況的細節）→ 請溫暖簡短地確認已記錄給醫師，若仍有重要脈絡（如頻率、情境）未清楚可再補問最多 1 題。",
-    "B. 看完衛教文章後有好奇的延伸問題 → 請『嚴格只根據下方提供的部落格文章』回答（120～220 字）；若文章沒有涵蓋或涉及個別調藥/診斷，絕對不可自行編造，請誠實告知：「這個問題需要醫師依孩子的個別狀況評估，我已經幫您記下來，進診間時由醫師親自為您解答。」",
+    "B. 看完文章後有好奇的延伸問題 → 請『嚴格只根據下方提供的部落格文章』回答（120～220 字）；若文章沒有涵蓋或涉及個別調藥/診斷，絕對不可自行編造，請誠實告知需等進診間由醫師親自依孩子個別狀況評估解答。",
     "",
     "另外：",
-    "- 若本輪有從下方文章中挑選並附上連結（selectedUrls 非空），請同時在 therapyNote 產出一段更新後的「支持性／再教育性心理治療紀錄」（不可出現「衛教」、「看文章」、「部落格」等字眼，不腦補尚未發生的會談反應，格式嚴格為：治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy） - <具體主題>\\n相關內容記載：<約 60～120 字>）。",
+    "- 若本輪有從下方文章中挑選並附上連結（selectedUrls 非空），請同時在 therapyNote 產出一段更新後的「支持性／再教育性心理治療紀錄」（繁體中文，不可出現「衛教」、「看文章」、「部落格」等字眼，不腦補尚未發生的會談反應，格式嚴格為：治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy） - <具體主題>\\n相關內容記載：<約 60～120 字>）。",
     "- 若本輪沒有附上新文章（selectedUrls 為空），therapyNote 請留空字串 \"\"。",
+    isVi
+      ? "- 若家長最新訊息為越南語，請在 translatedMessage 提供精確的繁體中文翻譯；否則留空字串。"
+      : "- translatedMessage 請留空字串。",
     "",
     historyBlock ? `【先前對話】\n${historyBlock}\n` : "",
     `【家長最新訊息】\n${message}\n`,
@@ -316,21 +337,24 @@ function handleFollowUpChat_(message, history, candidates) {
       properties: {
         reply: { type: "STRING" },
         therapyNote: { type: "STRING" },
+        translatedMessage: { type: "STRING" },
         selectedUrls: {
           type: "ARRAY",
           items: { type: "STRING" },
         },
       },
-      required: ["reply", "therapyNote", "selectedUrls"],
+      required: ["reply", "therapyNote", "translatedMessage", "selectedUrls"],
     },
     0.25
   );
 
   if (!parsed) {
     return {
-      reply:
-        "收到您的補充！我已經幫您記錄下來，等一下進診間時醫師會親自為您說明。",
+      reply: isVi
+        ? "Đã ghi nhận thông tin bổ sung! Bác sĩ sẽ trao đổi trực tiếp với bạn khi vào khám."
+        : "收到您的補充！我已經幫您記錄下來，等一下進診間時醫師會親自為您說明。",
       therapyNote: "",
+      translatedMessage: "",
       selectedUrls: [],
     };
   }
@@ -338,6 +362,7 @@ function handleFollowUpChat_(message, history, candidates) {
   return {
     reply: String(parsed.reply || "").trim(),
     therapyNote: String(parsed.therapyNote || "").trim(),
+    translatedMessage: String(parsed.translatedMessage || "").trim(),
     selectedUrls: Array.isArray(parsed.selectedUrls)
       ? parsed.selectedUrls
       : [],
@@ -413,11 +438,13 @@ function doPost(e) {
     if (payload.action === "chat") {
       const targetId = String(payload.id || "");
       const message = String(payload.message || "").trim();
+      const lang = String(payload.lang || "zh");
       const candidates = payload.candidates || [];
       const chatRes = handleFollowUpChat_(
         message,
         payload.history || [],
-        candidates
+        candidates,
+        lang
       );
       const hasNewArticles =
         chatRes.selectedUrls && chatRes.selectedUrls.length > 0;
@@ -426,10 +453,14 @@ function doPost(e) {
             .filter((c) => chatRes.selectedUrls.indexOf(c.url) !== -1)
             .map((c) => c.title)
         : [];
+      const noteForDoctor =
+        lang === "vi" && chatRes.translatedMessage
+          ? `${message}（翻譯：${chatRes.translatedMessage}）`
+          : message;
       updateRowOnFollowUp_(
         sheet,
         targetId,
-        message,
+        noteForDoctor,
         hasNewArticles ? chatRes.therapyNote : "",
         newTitles
       );
@@ -442,6 +473,7 @@ function doPost(e) {
 
     // 預設：新增門診登記
     const d = payload.data || {};
+    const lang = String(payload.lang || "zh");
     const now = new Date();
     const id =
       Utilities.formatDate(now, "Asia/Taipei", "HHmmss") +
@@ -462,8 +494,12 @@ function doPost(e) {
 
     // 若無自傷風險且有提供候選文章，請 Gemini 判斷適配度並產出導讀
     let aiGuide = null;
-    if (!d.selfHarm && payload.questionText && payload.candidates) {
-      aiGuide = generateBlogGuide_(payload.questionText, payload.candidates);
+    if (!d.selfHarm && (payload.questionText || (payload.candidates && payload.candidates.length > 0))) {
+      aiGuide = generateBlogGuide_(
+        payload.questionText,
+        payload.candidates,
+        lang
+      );
     }
 
     const recommendedTitles =
@@ -480,6 +516,14 @@ function doPost(e) {
         ? aiGuide.therapyNote
         : "";
 
+    const otherDetailText =
+      lang === "vi" &&
+      aiGuide &&
+      aiGuide.translatedOtherDetail &&
+      d.otherDetail
+        ? `${d.otherDetail}（翻譯：${aiGuide.translatedOtherDetail}）`
+        : d.otherDetail || "";
+
     sheet.appendRow([
       dateStr,
       timeStr,
@@ -491,7 +535,7 @@ function doPost(e) {
       d.medDays || "",
       d.recentStatus || "",
       (d.issues || []).join("；"),
-      d.otherDetail || "",
+      otherDetailText,
       certText,
       therapyNote,
       recommendedTitles.join("；"),
