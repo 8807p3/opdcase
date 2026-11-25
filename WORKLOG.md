@@ -14,7 +14,7 @@ c# 工作紀錄 (WORKLOG)
    - 看板上方直接顯示「個案填寫網址」與「複製網址」按鈕。
 3. **Google Apps Script 後端與 Gemini AI 導讀**（`gas/Code.gs`、`gas/appsscript.json`）
    - 已透過 `clasp` 綁定並部署至版本 `@5`（首次執行自動建立 `兒青門診登記表` Google 試算表）。
-   - 整合 `gemini-4-argon`（Gemini 4 高性價比模型）進行適配度判斷（不適合不硬塞）與 200～300 字原文導讀及追問補充。
+   - 整合 `gemini-4-hydrogen`（Gemini 4 最經濟版本）進行適配度判斷（不適合不硬塞）與 200～300 字原文導讀及追問補充。
 4. **GitHub Pages ＆ 自動同步部署**（`8807p3/opdcase`）
    - 已完成 `gh` CLI 認證與 GitHub Pages（`main` 分支）部署。
    - 已設定 `.github/workflows/sync-blog.yml` 每日凌晨自動同步部落格新文章，並啟用 GitHub Actions `write` 權限。
