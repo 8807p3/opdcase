@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>兒青門診 看診前調查表｜314風神學院</title>
-  <link rel="stylesheet" href="./assets/style.css?v=4" />
+  <link rel="stylesheet" href="./assets/style.css?v=5" />
 </head>
 <body>
   <div class="container">
@@ -12,6 +12,21 @@
       <h1>兒青門診 看診前調查表</h1>
       <p>請家長依孩子近期狀況填寫，送出後系統也會從《314風神學院》推薦相關衛教文章供候診閱讀。</p>
     </header>
+
+    <!-- 非門診時間提示畫面 -->
+    <main id="closed-view" class="hidden">
+      <section class="card">
+        <h2 class="card-title">🕒 目前為非門診時段</h2>
+        <div class="alert alert-warning" style="margin-top:0;">
+          目前門診調查表暫停填寫，請於<strong>看診當日</strong>再掃描 QR code 登記。
+        </div>
+        <p class="hint" style="margin-top:12px;">
+          若您想先閱讀衛教資料，仍可於下方直接搜尋《314風神學院》文章：
+        </p>
+        <input type="text" id="closed-search-input" placeholder="🔍 輸入關鍵字搜尋文章（如：食慾、拖延、生氣）" />
+        <div id="closed-articles" class="article-list"></div>
+      </section>
+    </main>
 
     <!-- 表單填寫畫面 -->
     <main id="form-view">
@@ -166,8 +181,8 @@
     </p>
   </div>
 
-  <script src="./assets/config.js?v=4"></script>
-  <script src="./assets/search.js?v=4"></script>
-  <script src="./assets/app.js?v=4"></script>
+  <script src="./assets/config.js?v=5"></script>
+  <script src="./assets/search.js?v=5"></script>
+  <script src="./assets/app.js?v=5"></script>
 </body>
 </html>

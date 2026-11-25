@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>診間即時看板｜兒青門診</title>
-  <link rel="stylesheet" href="./assets/style.css?v=4" />
+  <link rel="stylesheet" href="./assets/style.css?v=5" />
 </head>
 <body>
   <div class="container wide">
@@ -27,6 +27,14 @@
     <main id="dashboard" class="hidden">
       <div id="mode-notice" class="alert alert-warning hidden" style="margin-bottom:14px;"></div>
 
+      <section class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <div>
+          <strong style="font-size:1.02rem;">門診填寫開關：</strong>
+          <span id="clinic-status-badge" class="badge badge-stable">🟢 開放填寫中</span>
+        </div>
+        <button type="button" id="toggle-clinic-btn" class="btn btn-secondary btn-sm">切換為關閉填寫</button>
+      </section>
+
       <div class="toolbar">
         <div class="inline-row">
           <select id="filter-status" style="width:auto;">
@@ -43,7 +51,7 @@
     </main>
   </div>
 
-  <script src="./assets/config.js?v=4"></script>
-  <script src="./assets/doctor.js?v=4"></script>
+  <script src="./assets/config.js?v=5"></script>
+  <script src="./assets/doctor.js?v=5"></script>
 </body>
 </html>

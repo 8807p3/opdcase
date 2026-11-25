@@ -8,6 +8,8 @@
   const dashboard = document.getElementById("dashboard");
 
   const modeNotice = document.getElementById("mode-notice");
+  const clinicStatusBadge = document.getElementById("clinic-status-badge");
+  const toggleClinicBtn = document.getElementById("toggle-clinic-btn");
   const recordsList = document.getElementById("records-list");
   const filterSelect = document.getElementById("filter-status");
   const refreshBtn = document.getElementById("refresh-btn");
@@ -49,6 +51,19 @@
   ];
 
   let currentRecords = [];
+  let clinicOpen = true;
+
+  function renderClinicStatus() {
+    if (clinicOpen) {
+      clinicStatusBadge.className = "badge badge-stable";
+      clinicStatusBadge.textContent = "🟢 門診開放填寫中";
+      toggleClinicBtn.textContent = "點擊關閉填寫（下診）";
+    } else {
+      clinicStatusBadge.className = "badge badge-danger";
+      clinicStatusBadge.textContent = "🔴 目前已關閉填寫（非門診時間）";
+      toggleClinicBtn.textContent = "點擊開放填寫（上診）";
+    }
+  }
 
   function escapeHtml(str) {
     return String(str || "")
@@ -96,6 +111,10 @@
       const json = await resp.json();
       if (json.ok) {
         currentRecords = json.records || [];
+        if (typeof json.clinicOpen === "boolean") {
+          clinicOpen = json.clinicOpen;
+          renderClinicStatus();
+        }
         renderRecords();
         lastUpdated.textContent =
           "最後更新：" +
@@ -224,12 +243,41 @@
     });
   }
 
+  async function toggleClinicOpen() {
+    const nextOpen = !clinicOpen;
+    const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+    if (!gasUrl) {
+      clinicOpen = nextOpen;
+      renderClinicStatus();
+      return;
+    }
+    toggleClinicBtn.disabled = true;
+    try {
+      const resp = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "setClinicOpen", open: nextOpen }),
+      });
+      const json = await resp.json();
+      if (json.ok) {
+        clinicOpen = Boolean(json.clinicOpen);
+        renderClinicStatus();
+      }
+    } catch (err) {
+      alert("切換狀態失敗，請稍後再試");
+    } finally {
+      toggleClinicBtn.disabled = false;
+    }
+  }
+
   function startDashboard() {
+    renderClinicStatus();
     fetchRecords();
     const interval = window.CLINIC_CONFIG?.POLL_INTERVAL_MS || 15000;
     setInterval(fetchRecords, interval);
   }
 
+  toggleClinicBtn.addEventListener("click", toggleClinicOpen);
   filterSelect.addEventListener("change", renderRecords);
   refreshBtn.addEventListener("click", fetchRecords);
 

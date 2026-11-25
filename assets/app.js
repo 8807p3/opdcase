@@ -2,6 +2,9 @@
 
 (function () {
   const form = document.getElementById("intake-form");
+  const closedView = document.getElementById("closed-view");
+  const closedSearchInput = document.getElementById("closed-search-input");
+  const closedArticlesBox = document.getElementById("closed-articles");
   const formView = document.getElementById("form-view");
   const resultView = document.getElementById("result-view");
 
@@ -302,6 +305,9 @@
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const json = await resp.json();
+      if (json.closed) {
+        return { ok: false, reason: "closed", id: "", aiGuide: null };
+      }
       return {
         ok: true,
         id: json.id || "",
@@ -488,6 +494,11 @@
       submitStatus.className = "alert alert-info";
       submitStatus.textContent =
         "✅ 已傳送給診間醫師！請在候診區稍候。";
+    } else if (res.reason === "closed") {
+      resultView.classList.add("hidden");
+      formView.classList.add("hidden");
+      closedView.classList.remove("hidden");
+      return;
     } else if (res.reason === "no_gas") {
       submitStatus.className = "alert alert-warning";
       submitStatus.textContent =
@@ -537,6 +548,40 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  // Preload blog index silently
+  // Standalone search on closed-hours view
+  let closedSearchTimer = null;
+  if (closedSearchInput) {
+    closedSearchInput.addEventListener("input", () => {
+      clearTimeout(closedSearchTimer);
+      closedSearchTimer = setTimeout(async () => {
+        const q = closedSearchInput.value.trim();
+        if (!q) {
+          closedArticlesBox.innerHTML = "";
+          return;
+        }
+        const posts = await window.BlogSearch.searchBlogPosts(q, 4, []);
+        renderArticles(closedArticlesBox, posts);
+      }, 280);
+    });
+  }
+
+  async function checkClinicStatus() {
+    const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+    if (!gasUrl) return;
+    try {
+      const resp = await fetch(`${gasUrl}?action=status&t=${Date.now()}`);
+      const json = await resp.json();
+      if (json.ok && json.clinicOpen === false) {
+        formView.classList.add("hidden");
+        resultView.classList.add("hidden");
+        closedView.classList.remove("hidden");
+      }
+    } catch (err) {
+      // Keep form usable if status check fails
+    }
+  }
+
+  // Preload blog index & check clinic status
   window.BlogSearch.loadPosts().catch(() => {});
+  checkClinicStatus();
 })();

@@ -54,6 +54,11 @@ function getOrCreateSheet_() {
   return sheet;
 }
 
+function isClinicOpen_() {
+  const val = PropertiesService.getScriptProperties().getProperty("CLINIC_OPEN");
+  return val !== "false";
+}
+
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
     ContentService.MimeType.JSON
@@ -61,10 +66,15 @@ function jsonResponse_(obj) {
 }
 
 function doGet(e) {
+  const clinicOpen = isClinicOpen_();
+  if (e && e.parameter && e.parameter.action === "status") {
+    return jsonResponse_({ ok: true, clinicOpen: clinicOpen });
+  }
+
   const sheet = getOrCreateSheet_();
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) {
-    return jsonResponse_({ ok: true, records: [] });
+    return jsonResponse_({ ok: true, clinicOpen: clinicOpen, records: [] });
   }
 
   const todayStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
@@ -114,7 +124,12 @@ function doGet(e) {
 
   // 最新的在最前面
   records.reverse();
-  return jsonResponse_({ ok: true, date: filterDate, records: records });
+  return jsonResponse_({
+    ok: true,
+    date: filterDate,
+    clinicOpen: clinicOpen,
+    records: records,
+  });
 }
 
 function generateBlogGuide_(questionText, candidates) {
@@ -306,7 +321,38 @@ function appendNoteToRow_(sheet, targetId, noteText) {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
+
+    if (payload.action === "setClinicOpen") {
+      const nextOpen = Boolean(payload.open);
+      PropertiesService.getScriptProperties().setProperty(
+        "CLINIC_OPEN",
+        nextOpen ? "true" : "false"
+      );
+      return jsonResponse_({ ok: true, clinicOpen: nextOpen });
+    }
+
     const sheet = getOrCreateSheet_();
+
+    if (payload.action === "markDone") {
+      const targetId = String(payload.id || "");
+      const nextStatus = String(payload.status || "已看診");
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === targetId) {
+          sheet.getRange(i + 1, 15).setValue(nextStatus);
+          return jsonResponse_({ ok: true, id: targetId, status: nextStatus });
+        }
+      }
+      return jsonResponse_({ ok: false, error: "找不到該筆資料" });
+    }
+
+    if (!isClinicOpen_()) {
+      return jsonResponse_({
+        ok: false,
+        closed: true,
+        error: "目前為非門診時段，已暫停填寫。",
+      });
+    }
 
     if (payload.action === "chat") {
       const targetId = String(payload.id || "");
@@ -322,19 +368,6 @@ function doPost(e) {
         reply: chatRes.reply,
         selectedUrls: chatRes.selectedUrls,
       });
-    }
-
-    if (payload.action === "markDone") {
-      const targetId = String(payload.id || "");
-      const nextStatus = String(payload.status || "已看診");
-      const rows = sheet.getDataRange().getValues();
-      for (let i = 1; i < rows.length; i++) {
-        if (String(rows[i][0]) === targetId) {
-          sheet.getRange(i + 1, 15).setValue(nextStatus);
-          return jsonResponse_({ ok: true, id: targetId, status: nextStatus });
-        }
-      }
-      return jsonResponse_({ ok: false, error: "找不到該筆資料" });
     }
 
     // 預設：新增門診登記
