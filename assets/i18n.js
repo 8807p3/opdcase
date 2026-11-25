@@ -39,7 +39,8 @@ window.CLINIC_I18N = {
     optIssuePeer: "打同學／常與同學吵架／捉弄同學",
     optIssueFamily: "與家人爭執多／與手足爭執多",
     optIssueAngry: "容易生氣、講不聽",
-    optIssueMed: "藥物使用不當的問題",
+    optIssueMedAdherence: "忘記吃藥／抗拒服藥／沒按時吃",
+    optIssueMedSideEffect: "服藥後不適或副作用（如沒胃口、睡不著、不舒服）",
     optIssueSelfHarm: "傷害自己",
     selfHarmAlert:
       "<strong>⚠️ 緊急關懷提醒：</strong><br />若孩子近期有自傷行為或強烈情緒危機，請<strong>立即告知診間護理人員或醫師</strong>優先處理。<br />衛福部 24 小時安心專線：<strong>1925</strong>（依舊愛我）。",
@@ -143,7 +144,8 @@ window.CLINIC_I18N = {
     optIssuePeer: "Đánh bạn / hay cãi nhau / trêu chọc bạn",
     optIssueFamily: "Hay tranh cãi với người nhà / anh chị em",
     optIssueAngry: "Dễ nổi nóng, nói không nghe",
-    optIssueMed: "Vấn đề sử dụng thuốc chưa đúng cách",
+    optIssueMedAdherence: "Quên uống thuốc / không chịu uống / uống không đúng giờ",
+    optIssueMedSideEffect: "Tác dụng phụ sau khi uống thuốc (chán ăn, khó ngủ, khó chịu)",
     optIssueSelfHarm: "Tự làm hại bản thân",
     selfHarmAlert:
       "<strong>⚠️ Lưu ý khẩn cấp:</strong><br />Nếu trẻ gần đây có hành vi tự làm hại bản thân hoặc khủng hoảng cảm xúc mạnh, vui lòng <strong>báo ngay cho điều dưỡng hoặc bác sĩ tại phòng khám</strong> để được ưu tiên hỗ trợ.<br />Đường dây nóng tâm lý Đài Loan (24/7): <strong>1925</strong>.",
