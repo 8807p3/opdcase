@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>兒青門診 看診前調查表｜314風神學院</title>
+  <link rel="stylesheet" href="./assets/style.css?v=4" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>兒青門診 看診前調查表</h1>
+      <p>請家長依孩子近期狀況填寫，送出後系統也會從《314風神學院》推薦相關衛教文章供候診閱讀。</p>
+    </header>
+
+    <!-- 表單填寫畫面 -->
+    <main id="form-view">
+      <form id="intake-form">
+        <!-- 基本資料 -->
+        <section class="card">
+          <h2 class="card-title">基本資訊</h2>
+          <div class="field-group">
+            <label class="field-label" for="child-name">小朋友姓名（或看診序號／暱稱）</label>
+            <input type="text" id="child-name" name="childName" placeholder="例如：王小明 或 15號" required />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">同來的家長</label>
+            <div class="option-grid">
+              <label class="option-pill"><input type="radio" name="parent" value="媽媽" required /> 媽媽</label>
+              <label class="option-pill"><input type="radio" name="parent" value="爸爸" /> 爸爸</label>
+              <label class="option-pill"><input type="radio" name="parent" value="其他" /> 其他</label>
+            </div>
+            <input type="text" id="parent-other" class="hidden" style="margin-top: 8px;" placeholder="請填寫稱謂（例如：阿嬤、姑姑）" />
+          </div>
+        </section>
+
+        <!-- Q1 & Q2 -->
+        <section class="card">
+          <h2 class="card-title">看診與用藥狀況</h2>
+
+          <div class="field-group">
+            <label class="field-label">Q1：這次來看診，小朋友的狀況都還好嗎？</label>
+            <div class="check-list">
+              <label class="option-pill"><input type="radio" name="q1" value="尚未開始服藥" required /> 尚未開始服藥</label>
+              <label class="option-pill"><input type="radio" name="q1" value="狀況穩定，回診拿藥即可" /> 狀況穩定，回診拿藥即可</label>
+              <label class="option-pill"><input type="radio" name="q1" value="要與醫師討論" /> 要與醫師討論</label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Q2：假日是否服藥？</label>
+            <div class="option-grid">
+              <label class="option-pill"><input type="radio" name="q2" value="尚未服藥" required /> 尚未服藥</label>
+              <label class="option-pill"><input type="radio" name="q2" value="有" /> 有</label>
+              <label class="option-pill"><input type="radio" name="q2" value="沒有" /> 沒有</label>
+              <label class="option-pill"><input type="radio" name="q2" value="看狀況" /> 看狀況</label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="med-days">目前還剩下多少天藥物？</label>
+            <div class="inline-row">
+              <input type="number" id="med-days" name="medDays" min="0" max="180" placeholder="0" />
+              <span>天（若尚未服藥可留空）</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 近期狀況 -->
+        <section class="card">
+          <h2 class="card-title">⚠️ 小朋友近期有狀況嗎？</h2>
+
+          <div class="field-group">
+            <div class="check-list">
+              <label class="option-pill selected">
+                <input type="radio" id="recent-stable" name="recentStatus" value="表現不錯！狀況穩定" checked />
+                表現不錯！狀況穩定
+              </label>
+              <label class="option-pill">
+                <input type="radio" id="recent-unstable" name="recentStatus" value="狀況仍不穩定" />
+                狀況仍不穩定，近期有狀況（請勾選或補充）
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">近期狀況勾選（可複選）</label>
+            <div class="check-list">
+              <label class="option-pill"><input type="checkbox" name="issues" value="打同學／常與同學吵架／捉弄同學" /> 打同學／常與同學吵架／捉弄同學</label>
+              <label class="option-pill"><input type="checkbox" name="issues" value="與家人爭執多／與手足爭執多" /> 與家人爭執多／與手足爭執多</label>
+              <label class="option-pill"><input type="checkbox" name="issues" value="容易生氣、講不聽" /> 容易生氣、講不聽</label>
+              <label class="option-pill"><input type="checkbox" name="issues" value="藥物使用不當的問題" /> 藥物使用不當的問題</label>
+              <label class="option-pill danger-option"><input type="checkbox" id="issue-self-harm" name="issues" value="傷害自己" /> 傷害自己</label>
+            </div>
+
+            <div id="self-harm-alert" class="alert alert-danger hidden">
+              <strong>⚠️ 緊急關懷提醒：</strong><br />
+              若孩子近期有自傷行為或強烈情緒危機，請<strong>立即告知診間護理人員或醫師</strong>優先處理。<br />
+              衛福部 24 小時安心專線：<strong>1925</strong>（依舊愛我）。
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="other-detail">其他補充（需要討論的狀況、想問醫師的問題或調整藥物）</label>
+            <textarea id="other-detail" name="otherDetail" placeholder="例如：最近寫作業拖拉、吃藥後中午食慾不好、想問假日要不要吃藥…"></textarea>
+          </div>
+
+          <div class="field-group">
+            <label class="option-pill">
+              <input type="checkbox" id="need-cert" name="needCert" />
+              需要評估、診斷證明
+            </label>
+            <input type="text" id="cert-detail" class="hidden" style="margin-top: 8px;" placeholder="請註明需要什麼評估或診斷證明需求" />
+          </div>
+        </section>
+
+        <!-- 即時衛教文章推薦 -->
+        <section class="card">
+          <h2 class="card-title">📖 《314風神學院》衛教文章即時推薦</h2>
+          <p id="live-articles-hint" class="hint" style="margin-top: 0;">
+            勾選上方狀況或在下方輸入想問的問題，系統會自動從《314風神學院》推薦相關衛教文章。
+          </p>
+          <input type="text" id="live-search-input" placeholder="🔍 也可以直接輸入關鍵字搜尋文章（如：食慾、拖延、青春期）" />
+          <div id="live-articles" class="article-list"></div>
+        </section>
+
+        <button type="submit" class="btn btn-primary">送出調查表</button>
+      </form>
+    </main>
+
+    <!-- 送出後畫面 -->
+    <main id="result-view" class="hidden">
+      <div id="submit-status" class="alert alert-info"></div>
+
+      <section class="card">
+        <h2 class="card-title">📋 看診重點小卡</h2>
+        <div id="summary-card"></div>
+        <div style="margin-top: 14px;">
+          <button type="button" id="edit-btn" class="btn btn-secondary btn-sm">← 修改填寫內容</button>
+        </div>
+      </section>
+
+      <section id="result-guide-section" class="card">
+        <h2 class="card-title">📖 衛教重點導讀與文章推薦</h2>
+        <div id="ai-guide-box" class="alert alert-info hidden" style="margin-top:0;margin-bottom:12px;line-height:1.75;white-space:pre-line;"></div>
+        <p id="result-articles-hint" class="hint" style="margin-top: 0;">來自醫師部落格《314風神學院》：</p>
+        <div id="result-articles" class="article-list"></div>
+      </section>
+
+      <section id="chat-section" class="card">
+        <h2 class="card-title">💬 補充說明或延伸提問</h2>
+        <p class="hint" style="margin-top:0;">
+          想補充更多細節給醫師，或對剛才的文章有疑問嗎？歡迎在下方直接對話（系統會一併轉交給醫師）。
+        </p>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="輸入想補充的狀況，或想多問的問題…" />
+          <button type="button" id="chat-send-btn" class="btn btn-primary" style="width:auto;padding:10px 18px;">送出</button>
+        </div>
+      </section>
+    </main>
+
+    <p class="footer-note">
+      本系統僅供候診前整理問題與衛教閱讀參考，不代表醫療診斷或處方建議。
+    </p>
+  </div>
+
+  <script src="./assets/config.js?v=4"></script>
+  <script src="./assets/search.js?v=4"></script>
+  <script src="./assets/app.js?v=4"></script>
+</body>
+</html>

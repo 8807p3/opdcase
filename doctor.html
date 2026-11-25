@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>診間即時看板｜兒青門診</title>
+  <link rel="stylesheet" href="./assets/style.css?v=4" />
+</head>
+<body>
+  <div class="container wide">
+    <header class="header">
+      <h1>診間即時看板</h1>
+      <p>自動同步候診個案填寫的看診前調查表，方便醫師看診前快速掌握重點。</p>
+    </header>
+
+    <section id="pin-gate" class="card" style="max-width:400px;margin:30px auto;">
+      <h2 class="card-title">🔒 請輸入診間看板密碼</h2>
+      <div class="field-group">
+        <input type="password" id="pin-input" placeholder="請輸入密碼" />
+      </div>
+      <div id="pin-error" class="alert alert-danger hidden" style="margin-bottom:12px;">
+        密碼不正確，請再試一次。
+      </div>
+      <button type="button" id="pin-btn" class="btn btn-primary">進入看板</button>
+    </section>
+
+    <main id="dashboard" class="hidden">
+      <div id="mode-notice" class="alert alert-warning hidden" style="margin-bottom:14px;"></div>
+
+      <div class="toolbar">
+        <div class="inline-row">
+          <select id="filter-status" style="width:auto;">
+            <option value="待看診">僅顯示：待看診</option>
+            <option value="all">顯示全部</option>
+            <option value="已看診">僅顯示：已看診</option>
+          </select>
+          <button type="button" id="refresh-btn" class="btn btn-secondary btn-sm">↻ 立即更新</button>
+        </div>
+        <span id="last-updated" class="hint"></span>
+      </div>
+
+      <div id="records-list"></div>
+    </main>
+  </div>
+
+  <script src="./assets/config.js?v=4"></script>
+  <script src="./assets/doctor.js?v=4"></script>
+</body>
+</html>
