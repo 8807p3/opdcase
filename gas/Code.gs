@@ -12,6 +12,7 @@
 
 const SHEET_NAME = "門診登記";
 const GEMINI_MODEL = "gemini-4-hydrogen";
+const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
 const HEADERS = [
   "日期",
   "時間",
@@ -152,11 +153,57 @@ function doGet(e) {
   });
 }
 
-function generateBlogGuide_(questionText, candidates) {
+function callGeminiJson_(prompt, responseSchema, temperature) {
   const apiKey = PropertiesService.getScriptProperties().getProperty(
     "GEMINI_API_KEY"
   );
-  if (!apiKey || !questionText || !candidates || candidates.length === 0) {
+  if (!apiKey) return null;
+
+  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL];
+  for (let i = 0; i < models.length; i++) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${models[i]}:generateContent?key=${encodeURIComponent(
+        apiKey
+      )}`;
+      const resp = UrlFetchApp.fetch(endpoint, {
+        method: "post",
+        contentType: "application/json",
+        muteHttpExceptions: true,
+        payload: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: temperature,
+            responseMimeType: "application/json",
+            responseSchema: responseSchema,
+          },
+        }),
+      });
+
+      if (resp.getResponseCode() !== 200) {
+        Logger.log(`Gemini ${models[i]} HTTP ${resp.getResponseCode()}: ${resp.getContentText()}`);
+        continue;
+      }
+      const body = JSON.parse(resp.getContentText());
+      const rawText =
+        body &&
+        body.candidates &&
+        body.candidates[0] &&
+        body.candidates[0].content &&
+        body.candidates[0].content.parts &&
+        body.candidates[0].content.parts[0] &&
+        body.candidates[0].content.parts[0].text;
+      if (rawText) {
+        return JSON.parse(rawText);
+      }
+    } catch (err) {
+      Logger.log(`Gemini ${models[i]} error: ${err}`);
+    }
+  }
+  return null;
+}
+
+function generateBlogGuide_(questionText, candidates) {
+  if (!questionText || !candidates || candidates.length === 0) {
     return null;
   }
 
@@ -187,83 +234,49 @@ function generateBlogGuide_(questionText, candidates) {
     `【候選文章】\n${articlesBlock}`,
   ].join("\n");
 
-  try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-      apiKey
-    )}`;
-    const resp = UrlFetchApp.fetch(endpoint, {
-      method: "post",
-      contentType: "application/json",
-      muteHttpExceptions: true,
-      payload: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          thinkingConfig: {
-            thinkingLevel: "minimal",
-          },
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              suitable: { type: "BOOLEAN" },
-              summary: { type: "STRING" },
-              followUpQuestion: { type: "STRING" },
-              therapyNote: { type: "STRING" },
-              selectedUrls: {
-                type: "ARRAY",
-                items: { type: "STRING" },
-              },
-            },
-            required: [
-              "suitable",
-              "summary",
-              "followUpQuestion",
-              "therapyNote",
-              "selectedUrls",
-            ],
-          },
+  const parsed = callGeminiJson_(
+    prompt,
+    {
+      type: "OBJECT",
+      properties: {
+        suitable: { type: "BOOLEAN" },
+        summary: { type: "STRING" },
+        followUpQuestion: { type: "STRING" },
+        therapyNote: { type: "STRING" },
+        selectedUrls: {
+          type: "ARRAY",
+          items: { type: "STRING" },
         },
-      }),
-    });
+      },
+      required: [
+        "suitable",
+        "summary",
+        "followUpQuestion",
+        "therapyNote",
+        "selectedUrls",
+      ],
+    },
+    0.2
+  );
 
-    if (resp.getResponseCode() !== 200) {
-      return null;
-    }
-    const body = JSON.parse(resp.getContentText());
-    const rawText =
-      body &&
-      body.candidates &&
-      body.candidates[0] &&
-      body.candidates[0].content &&
-      body.candidates[0].content.parts &&
-      body.candidates[0].content.parts[0] &&
-      body.candidates[0].content.parts[0].text;
-    if (!rawText) return null;
-
-    const parsed = JSON.parse(rawText);
-    return {
-      suitable: Boolean(parsed.suitable),
-      summary: String(parsed.summary || "").trim(),
-      followUpQuestion: String(parsed.followUpQuestion || "").trim(),
-      therapyNote: String(parsed.therapyNote || "").trim(),
-      selectedUrls: Array.isArray(parsed.selectedUrls)
-        ? parsed.selectedUrls
-        : [],
-    };
-  } catch (err) {
-    return null;
-  }
+  if (!parsed) return null;
+  return {
+    suitable: Boolean(parsed.suitable),
+    summary: String(parsed.summary || "").trim(),
+    followUpQuestion: String(parsed.followUpQuestion || "").trim(),
+    therapyNote: String(parsed.therapyNote || "").trim(),
+    selectedUrls: Array.isArray(parsed.selectedUrls)
+      ? parsed.selectedUrls
+      : [],
+  };
 }
 
 function handleFollowUpChat_(message, history, candidates) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty(
-    "GEMINI_API_KEY"
-  );
-  if (!apiKey || !message) {
+  if (!message) {
     return {
       reply:
         "已幫您把這段補充記錄下來，等一下進診間時醫師會親自為您說明與討論。",
+      therapyNote: "",
       selectedUrls: [],
     };
   }
@@ -296,50 +309,24 @@ function handleFollowUpChat_(message, history, candidates) {
     articlesBlock ? `【可參考的《314風神學院》文章】\n${articlesBlock}` : "",
   ].join("\n");
 
-  try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-      apiKey
-    )}`;
-    const resp = UrlFetchApp.fetch(endpoint, {
-      method: "post",
-      contentType: "application/json",
-      muteHttpExceptions: true,
-      payload: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.25,
-          thinkingConfig: {
-            thinkingLevel: "minimal",
-          },
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              reply: { type: "STRING" },
-              therapyNote: { type: "STRING" },
-              selectedUrls: {
-                type: "ARRAY",
-                items: { type: "STRING" },
-              },
-            },
-            required: ["reply", "therapyNote", "selectedUrls"],
-          },
+  const parsed = callGeminiJson_(
+    prompt,
+    {
+      type: "OBJECT",
+      properties: {
+        reply: { type: "STRING" },
+        therapyNote: { type: "STRING" },
+        selectedUrls: {
+          type: "ARRAY",
+          items: { type: "STRING" },
         },
-      }),
-    });
+      },
+      required: ["reply", "therapyNote", "selectedUrls"],
+    },
+    0.25
+  );
 
-    if (resp.getResponseCode() !== 200) throw new Error("Gemini error");
-    const body = JSON.parse(resp.getContentText());
-    const rawText = body.candidates[0].content.parts[0].text;
-    const parsed = JSON.parse(rawText);
-    return {
-      reply: String(parsed.reply || "").trim(),
-      therapyNote: String(parsed.therapyNote || "").trim(),
-      selectedUrls: Array.isArray(parsed.selectedUrls)
-        ? parsed.selectedUrls
-        : [],
-    };
-  } catch (err) {
+  if (!parsed) {
     return {
       reply:
         "收到您的補充！我已經幫您記錄下來，等一下進診間時醫師會親自為您說明。",
@@ -347,6 +334,14 @@ function handleFollowUpChat_(message, history, candidates) {
       selectedUrls: [],
     };
   }
+
+  return {
+    reply: String(parsed.reply || "").trim(),
+    therapyNote: String(parsed.therapyNote || "").trim(),
+    selectedUrls: Array.isArray(parsed.selectedUrls)
+      ? parsed.selectedUrls
+      : [],
+  };
 }
 
 function updateRowOnFollowUp_(sheet, targetId, noteText, newTherapyNote, newTitles) {
