@@ -161,7 +161,7 @@ function generateBlogGuide_(questionText, candidates) {
   }
 
   const articlesBlock = candidates
-    .slice(0, 4)
+    .slice(0, 3)
     .map(
       (c, idx) =>
         `【文章 ${idx + 1}】\n標題：${c.title}\n連結：${c.url}\n內容：${c.text}`
@@ -199,6 +199,9 @@ function generateBlogGuide_(questionText, candidates) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.2,
+          thinkingConfig: {
+            thinkingLevel: "minimal",
+          },
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
@@ -266,7 +269,7 @@ function handleFollowUpChat_(message, history, candidates) {
   }
 
   const articlesBlock = (candidates || [])
-    .slice(0, 4)
+    .slice(0, 3)
     .map(
       (c, idx) =>
         `【文章 ${idx + 1}】\n標題：${c.title}\n連結：${c.url}\n內容：${c.text}`
@@ -305,6 +308,9 @@ function handleFollowUpChat_(message, history, candidates) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.25,
+          thinkingConfig: {
+            thinkingLevel: "minimal",
+          },
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",

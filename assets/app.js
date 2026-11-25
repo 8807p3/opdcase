@@ -296,10 +296,10 @@
           action: "submit",
           data,
           questionText,
-          candidates: (candidates || []).map((p) => ({
+          candidates: (candidates || []).slice(0, 3).map((p) => ({
             title: p.title,
             url: p.url,
-            text: p.text,
+            text: (p.text || "").slice(0, 650),
           })),
         }),
       });
@@ -414,10 +414,10 @@
           id: currentRecordId,
           message: msg,
           history: chatHistory,
-          candidates: aiCandidates.map((p) => ({
+          candidates: aiCandidates.slice(0, 3).map((p) => ({
             title: p.title,
             url: p.url,
-            text: p.text,
+            text: (p.text || "").slice(0, 650),
           })),
         }),
       });
@@ -457,7 +457,7 @@
     const aiCandidates =
       selectedIssues.length > 0 || freeText
         ? window.BlogSearch.getAiCandidates
-          ? await window.BlogSearch.getAiCandidates(freeText, 6, selectedIssues)
+          ? await window.BlogSearch.getAiCandidates(freeText, 3, selectedIssues)
           : posts
         : [];
     const data = collectFormData(posts);
@@ -478,7 +478,7 @@
       chatSection.classList.remove("hidden");
       resultArticlesHint.textContent =
         "🤖 正在為您閱讀《314風神學院》相關文章並整理重點…";
-      resultArticlesBox.innerHTML = "";
+      renderArticles(resultArticlesBox, posts);
     }
 
     formView.classList.add("hidden");
