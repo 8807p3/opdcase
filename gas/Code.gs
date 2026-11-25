@@ -11,7 +11,7 @@
  */
 
 const SHEET_NAME = "門診登記";
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-4-argon";
 const HEADERS = [
   "ID",
   "登記時間",
