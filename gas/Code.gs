@@ -284,6 +284,10 @@ function handleFollowUpChat_(message, history, candidates) {
     "A. 回答你剛才的釐清追問（補充孩子狀況的細節）→ 請溫暖簡短地確認已記錄給醫師，若仍有重要脈絡（如頻率、情境）未清楚可再補問最多 1 題。",
     "B. 看完衛教文章後有好奇的延伸問題 → 請『嚴格只根據下方提供的部落格文章』回答（120～220 字）；若文章沒有涵蓋或涉及個別調藥/診斷，絕對不可自行編造，請誠實告知：「這個問題需要醫師依孩子的個別狀況評估，我已經幫您記下來，進診間時由醫師親自為您解答。」",
     "",
+    "另外：",
+    "- 若本輪有從下方文章中挑選並附上連結（selectedUrls 非空），請同時在 therapyNote 產出一段更新後的「支持性／再教育性心理治療紀錄」（不可出現「衛教」、「看文章」、「部落格」等字眼，不腦補尚未發生的會談反應，格式嚴格為：治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy） - <具體主題>\\n相關內容記載：<約 60～120 字>）。",
+    "- 若本輪沒有附上新文章（selectedUrls 為空），therapyNote 請留空字串 \"\"。",
+    "",
     historyBlock ? `【先前對話】\n${historyBlock}\n` : "",
     `【家長最新訊息】\n${message}\n`,
     articlesBlock ? `【可參考的《314風神學院》文章】\n${articlesBlock}` : "",
@@ -306,12 +310,13 @@ function handleFollowUpChat_(message, history, candidates) {
             type: "OBJECT",
             properties: {
               reply: { type: "STRING" },
+              therapyNote: { type: "STRING" },
               selectedUrls: {
                 type: "ARRAY",
                 items: { type: "STRING" },
               },
             },
-            required: ["reply", "selectedUrls"],
+            required: ["reply", "therapyNote", "selectedUrls"],
           },
         },
       }),
@@ -319,11 +324,11 @@ function handleFollowUpChat_(message, history, candidates) {
 
     if (resp.getResponseCode() !== 200) throw new Error("Gemini error");
     const body = JSON.parse(resp.getContentText());
-    const rawText =
-      body.candidates[0].content.parts[0].text;
+    const rawText = body.candidates[0].content.parts[0].text;
     const parsed = JSON.parse(rawText);
     return {
       reply: String(parsed.reply || "").trim(),
+      therapyNote: String(parsed.therapyNote || "").trim(),
       selectedUrls: Array.isArray(parsed.selectedUrls)
         ? parsed.selectedUrls
         : [],
@@ -332,21 +337,37 @@ function handleFollowUpChat_(message, history, candidates) {
     return {
       reply:
         "收到您的補充！我已經幫您記錄下來，等一下進診間時醫師會親自為您說明。",
+      therapyNote: "",
       selectedUrls: [],
     };
   }
 }
 
-function appendNoteToRow_(sheet, targetId, noteText) {
-  if (!targetId || !noteText) return;
+function updateRowOnFollowUp_(sheet, targetId, noteText, newTherapyNote, newTitles) {
+  if (!targetId) return;
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][14]) === targetId) {
-      const existing = String(rows[i][10] || "").trim();
-      const updated = existing
-        ? `${existing}\n[對話補充] ${noteText}`
-        : `[對話補充] ${noteText}`;
-      sheet.getRange(i + 1, 11).setValue(updated);
+      if (noteText) {
+        const existing = String(rows[i][10] || "").trim();
+        const updated = existing
+          ? `${existing}\n[對話補充] ${noteText}`
+          : `[對話補充] ${noteText}`;
+        sheet.getRange(i + 1, 11).setValue(updated);
+      }
+      if (newTherapyNote) {
+        sheet.getRange(i + 1, 13).setValue(newTherapyNote);
+      }
+      if (newTitles && newTitles.length > 0) {
+        const existingTitles = String(rows[i][13] || "")
+          .split("；")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        newTitles.forEach((t) => {
+          if (existingTitles.indexOf(t) === -1) existingTitles.push(t);
+        });
+        sheet.getRange(i + 1, 14).setValue(existingTitles.join("；"));
+      }
       return;
     }
   }
@@ -391,11 +412,25 @@ function doPost(e) {
     if (payload.action === "chat") {
       const targetId = String(payload.id || "");
       const message = String(payload.message || "").trim();
-      appendNoteToRow_(sheet, targetId, message);
+      const candidates = payload.candidates || [];
       const chatRes = handleFollowUpChat_(
         message,
         payload.history || [],
-        payload.candidates || []
+        candidates
+      );
+      const hasNewArticles =
+        chatRes.selectedUrls && chatRes.selectedUrls.length > 0;
+      const newTitles = hasNewArticles
+        ? candidates
+            .filter((c) => chatRes.selectedUrls.indexOf(c.url) !== -1)
+            .map((c) => c.title)
+        : [];
+      updateRowOnFollowUp_(
+        sheet,
+        targetId,
+        message,
+        hasNewArticles ? chatRes.therapyNote : "",
+        newTitles
       );
       return jsonResponse_({
         ok: true,
