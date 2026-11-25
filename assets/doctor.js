@@ -10,6 +10,8 @@
   const modeNotice = document.getElementById("mode-notice");
   const clinicStatusBadge = document.getElementById("clinic-status-badge");
   const toggleClinicBtn = document.getElementById("toggle-clinic-btn");
+  const patientUrlLink = document.getElementById("patient-url-link");
+  const copyUrlBtn = document.getElementById("copy-url-btn");
   const recordsList = document.getElementById("records-list");
   const filterSelect = document.getElementById("filter-status");
   const refreshBtn = document.getElementById("refresh-btn");
@@ -271,6 +273,22 @@
   }
 
   function startDashboard() {
+    const patientUrl = new URL("./", window.location.href).href;
+    if (patientUrlLink) {
+      patientUrlLink.href = patientUrl;
+      patientUrlLink.textContent = patientUrl;
+    }
+    if (copyUrlBtn) {
+      copyUrlBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(patientUrl);
+          copyUrlBtn.textContent = "已複製！";
+          setTimeout(() => (copyUrlBtn.textContent = "複製網址"), 1500);
+        } catch (err) {
+          prompt("請手動複製個案填寫網址：", patientUrl);
+        }
+      });
+    }
     renderClinicStatus();
     fetchRecords();
     const interval = window.CLINIC_CONFIG?.POLL_INTERVAL_MS || 15000;
