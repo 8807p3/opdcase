@@ -131,23 +131,26 @@
   }
 
   async function toggleDone(id, nextStatus) {
+    const prevRecords = currentRecords;
+    currentRecords = currentRecords.map((r) =>
+      r.id === id ? { ...r, status: nextStatus } : r
+    );
+    renderRecords();
+
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
-    if (!gasUrl) {
-      currentRecords = currentRecords.map((r) =>
-        r.id === id ? { ...r, status: nextStatus } : r
-      );
-      renderRecords();
-      return;
-    }
+    if (!gasUrl) return;
 
     try {
-      await fetch(gasUrl, {
+      const resp = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "markDone", id, status: nextStatus }),
       });
-      await fetchRecords();
+      const json = await resp.json();
+      if (!json.ok) throw new Error(json.error || "Update failed");
     } catch (err) {
+      currentRecords = prevRecords;
+      renderRecords();
       alert("更新狀態失敗，請稍後再試");
     }
   }

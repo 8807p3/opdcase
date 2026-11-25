@@ -443,7 +443,12 @@
     }
 
     chatSendBtn.disabled = true;
-    chatSendBtn.textContent = t("btnSending");
+    let chatSec = 0;
+    chatSendBtn.textContent = `${t("btnSending")} (0s)`;
+    const chatTimer = setInterval(() => {
+      chatSec++;
+      chatSendBtn.textContent = `${t("btnSending")} (${chatSec}s)`;
+    }, 1000);
     try {
       const resp = await fetch(gasUrl, {
         method: "POST",
@@ -471,6 +476,7 @@
     } catch (err) {
       appendChatBubble("bot", t("chatNetErr"));
     } finally {
+      clearInterval(chatTimer);
       chatSendBtn.disabled = false;
       chatSendBtn.textContent = t("btnChatSend");
     }
@@ -506,13 +512,19 @@
     aiGuideBox.classList.add("hidden");
     aiGuideBox.textContent = "";
 
+    let guideTimer = null;
     if (data.selfHarm) {
       resultGuideSection.classList.add("hidden");
       chatSection.classList.add("hidden");
     } else {
       resultGuideSection.classList.remove("hidden");
       chatSection.classList.remove("hidden");
-      resultArticlesHint.textContent = t("guideLoading");
+      let waitSec = 0;
+      resultArticlesHint.textContent = t("guideLoadingSec", 0);
+      guideTimer = setInterval(() => {
+        waitSec++;
+        resultArticlesHint.textContent = t("guideLoadingSec", waitSec);
+      }, 1000);
       renderArticles(resultArticlesBox, posts);
     }
 
@@ -524,6 +536,7 @@
     submitStatus.textContent = t("statusSending");
 
     const res = await sendToGas(data, questionText, aiCandidates);
+    if (guideTimer) clearInterval(guideTimer);
     currentRecordId = res.id || "";
     if (res.ok) {
       submitStatus.className = "alert alert-info";
@@ -567,6 +580,9 @@
     } else if (data.otherDetail && posts.length === 0) {
       appendChatBubble("bot", t("defaultFollowUp"));
     }
+
+    // 運算完成後自動捲動到「衛教重點導讀與文章推薦」區塊
+    resultGuideSection.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   editBtn.addEventListener("click", () => {

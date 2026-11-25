@@ -75,6 +75,8 @@ window.CLINIC_I18N = {
     statusNetErr:
       "⚠️ 網路傳送暫時異常，但您的看診重點小卡已整理完成，進診間時可直接出示此畫面給醫師。",
     guideLoading: "🤖 正在為您閱讀《314風神學院》相關文章並整理重點…",
+    guideLoadingSec: (s) =>
+      `🤖 正在為您閱讀《314風神學院》相關文章並整理重點…（已等待 ${s} 秒）`,
     guideLinksLabel: "📖 延伸閱讀（《314風神學院》原文連結）：",
     guideNotSuitable:
       "您的問題較為個別化，系統已完整記錄給醫師，看診時將由醫師親自為您解答與討論。",
@@ -176,6 +178,8 @@ window.CLINIC_I18N = {
     statusNetErr:
       "⚠️ Kết nối tạm thời gián đoạn, nhưng phiếu tóm tắt đã sẵn sàng. Vui lòng đưa màn hình này cho bác sĩ xem khi vào khám.",
     guideLoading: "🤖 Đang đọc bài viết của bác sĩ và tổng hợp tóm tắt bằng tiếng Việt…",
+    guideLoadingSec: (s) =>
+      `🤖 Đang đọc bài viết của bác sĩ và tổng hợp tóm tắt bằng tiếng Việt… (${s} giây)`,
     guideLinksLabel: "📖 Xem bài viết gốc của bác sĩ (tiếng Trung):",
     guideNotSuitable:
       "Câu hỏi của bạn mang tính cá nhân hóa cao, hệ thống đã ghi lại đầy đủ để bác sĩ giải đáp trực tiếp khi khám.",
