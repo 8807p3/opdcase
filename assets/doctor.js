@@ -32,6 +32,8 @@
       otherDetail: "最近寫作業拖拉，吃藥後中午食慾比較差，想問是否需要調整劑量。",
       certDetail: "",
       recommendedTitles: ["「我沒空！」，當孩子困在過度專注的當下"],
+      therapyNote:
+        "治療標題：Re-educative Psychotherapy - 執行功能與注意力轉移衛教\n相關內容記載：針對個案寫作業拖拉及服藥後食慾下降情形，提供家長 ADHD 過度專注與藥物作用機制衛教，協助建立分段休息提示與飲食時間調整策略。",
       status: "待看診",
     },
     {
@@ -232,6 +234,21 @@
                     .join(" ／ ")}</div>`
                 : ""
             }
+            ${
+              r.therapyNote
+                ? `<div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #1f6f78;border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;">
+                      <strong style="color:#16535a;font-size:0.88rem;">🧠 心理治療紀錄草稿（Supportive / Re-educative）</strong>
+                      <button type="button" class="btn btn-secondary btn-sm copy-note-btn" data-note-id="${escapeHtml(
+                        r.id
+                      )}" style="padding:3px 9px;font-size:0.78rem;">複製紀錄</button>
+                    </div>
+                    <div style="white-space:pre-line;font-size:0.88rem;color:#334155;line-height:1.55;">${escapeHtml(
+                      r.therapyNote
+                    )}</div>
+                  </div>`
+                : ""
+            }
           </div>
         </article>
       `;
@@ -241,6 +258,20 @@
     recordsList.querySelectorAll("button[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => {
         toggleDone(btn.dataset.id, btn.dataset.next);
+      });
+    });
+
+    recordsList.querySelectorAll(".copy-note-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const rec = currentRecords.find((item) => item.id === btn.dataset.noteId);
+        if (!rec || !rec.therapyNote) return;
+        try {
+          await navigator.clipboard.writeText(rec.therapyNote);
+          btn.textContent = "已複製！";
+          setTimeout(() => (btn.textContent = "複製紀錄"), 1500);
+        } catch (err) {
+          prompt("請手動複製心理治療紀錄：", rec.therapyNote);
+        }
       });
     });
   }

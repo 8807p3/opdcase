@@ -28,6 +28,7 @@ const HEADERS = [
   "評估診斷證明",
   "系統推薦文章",
   "看診狀態",
+  "心理治療紀錄(Supportive/Re-educative)",
 ];
 
 function getOrCreateSheet_() {
@@ -50,6 +51,10 @@ function getOrCreateSheet_() {
   } else if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
     sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < HEADERS.length) {
+    for (let c = sheet.getLastColumn() + 1; c <= HEADERS.length; c++) {
+      sheet.getRange(1, c).setValue(HEADERS[c - 1]);
+    }
   }
   return sheet;
 }
@@ -119,6 +124,7 @@ function doGet(e) {
         .map((s) => s.trim())
         .filter(Boolean),
       status: String(r[14] || "待看診"),
+      therapyNote: String(r[15] || ""),
     });
   }
 
@@ -155,6 +161,9 @@ function generateBlogGuide_(questionText, candidates) {
     "2. 若 suitable 為 true，請『只根據提供的文章內容』撰寫一段 200～300 字的繁體中文導讀，語氣溫暖好讀，禁止自行編造原文以外的醫療建議或劑量指示。結尾請固定加上：「更多資訊請點選下面連結：」",
     "3. selectedUrls 請填入最相關的 1～2 篇文章連結（必須完全符合上方提供的連結）。",
     "4. 如果家長的問題寫得比較籠統（例如「最近不太好」、「老師說偷東西」、「情緒不好」），或沒有適合的文章，請在 followUpQuestion 提出 1～2 個簡短、好回答的事實釐清問題（例如發生頻率、持續多久、誘發情境），幫醫師先收集脈絡；若問題已很明確且有適合文章，followUpQuestion 可留空字串。",
+    "5. 請同時在 therapyNote 產生一段供醫師參考的「支持性／再教育性心理治療紀錄草稿（Supportive / Re-educative Psychotherapy）」，依據個案狀況與衛教重點（若 suitable 為 true 則結合衛教內容），嚴格使用以下格式：",
+    "治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy / Supportive & Re-educative Psychotherapy） - <簡短主題>",
+    "相關內容記載：<以專業簡潔的病歷紀錄語氣，條列或分段記載本次衛教核心、情緒支持或認知/行為再教育重點，約 80～150 字>",
     "",
     `【家長的問題與狀況】\n${questionText}`,
     "",
@@ -180,12 +189,19 @@ function generateBlogGuide_(questionText, candidates) {
               suitable: { type: "BOOLEAN" },
               summary: { type: "STRING" },
               followUpQuestion: { type: "STRING" },
+              therapyNote: { type: "STRING" },
               selectedUrls: {
                 type: "ARRAY",
                 items: { type: "STRING" },
               },
             },
-            required: ["suitable", "summary", "followUpQuestion", "selectedUrls"],
+            required: [
+              "suitable",
+              "summary",
+              "followUpQuestion",
+              "therapyNote",
+              "selectedUrls",
+            ],
           },
         },
       }),
@@ -210,6 +226,7 @@ function generateBlogGuide_(questionText, candidates) {
       suitable: Boolean(parsed.suitable),
       summary: String(parsed.summary || "").trim(),
       followUpQuestion: String(parsed.followUpQuestion || "").trim(),
+      therapyNote: String(parsed.therapyNote || "").trim(),
       selectedUrls: Array.isArray(parsed.selectedUrls)
         ? parsed.selectedUrls
         : [],
@@ -399,6 +416,8 @@ function doPost(e) {
         ? []
         : d.recommendedTitles || [];
 
+    const therapyNote = (aiGuide && aiGuide.therapyNote) || "";
+
     sheet.appendRow([
       id,
       timeStr,
@@ -415,6 +434,7 @@ function doPost(e) {
       certText,
       recommendedTitles.join("；"),
       "待看診",
+      therapyNote,
     ]);
 
     return jsonResponse_({ ok: true, id: id, aiGuide: aiGuide });
