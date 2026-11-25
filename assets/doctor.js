@@ -61,6 +61,8 @@
   let pinRequired = true;
   let pollTimer = null;
   let eventsBound = false;
+  let mutationEpoch = 0;
+  const rewritingIds = new Set();
 
   const PIN_STORAGE_KEY = "clinic_doctor_pin";
 
@@ -232,7 +234,7 @@
     pinInput.focus();
   }
 
-  async function fetchRecords() {
+  async function fetchRecords(isPoll = false) {
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
     if (!gasUrl) {
       modeNotice.classList.remove("hidden");
@@ -245,8 +247,13 @@
     }
 
     modeNotice.classList.add("hidden");
+    const isAutoPoll = isPoll === true;
+    if (isAutoPoll && rewritingIds.size > 0) return;
+
+    const startEpoch = mutationEpoch;
     try {
       const json = await doctorPost({ action: "getRecords" });
+      if (startEpoch !== mutationEpoch) return;
       if (json.ok) {
         currentRecords = json.records || [];
         if (typeof json.clinicOpen === "boolean") {
@@ -267,6 +274,7 @@
 
   async function toggleDone(id, nextStatus) {
     const prevRecords = currentRecords;
+    mutationEpoch++;
     currentRecords = currentRecords.map((r) =>
       r.id === id ? { ...r, status: nextStatus } : r
     );
@@ -282,6 +290,7 @@
         status: nextStatus,
       });
       if (!json.ok) throw new Error(json.error || "Update failed");
+      mutationEpoch++;
     } catch (err) {
       currentRecords = prevRecords;
       renderRecords();
@@ -382,13 +391,16 @@
                     const nextType = isCurrentlySupportive
                       ? "Re-educative"
                       : "Supportive";
+                    const isRewriting = rewritingIds.has(r.id);
                     return `<div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #1f6f78;border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
                       <strong style="color:#16535a;font-size:0.88rem;">🧠 心理治療紀錄草稿</strong>
                       <div style="display:flex;gap:6px;">
                         <button type="button" class="btn btn-secondary btn-sm switch-note-btn" data-note-id="${escapeHtml(
                           r.id
-                        )}" data-target-type="${nextType}" style="padding:3px 9px;font-size:0.78rem;">切換為 ${nextType}</button>
+                        )}" data-target-type="${nextType}" style="padding:3px 9px;font-size:0.78rem;" ${
+                      isRewriting ? "disabled" : ""
+                    }>${isRewriting ? "轉換中…" : `切換為 ${nextType}`}</button>
                         <button type="button" class="btn btn-secondary btn-sm copy-note-btn" data-note-id="${escapeHtml(
                           r.id
                         )}" style="padding:3px 9px;font-size:0.78rem;">複製紀錄</button>
@@ -417,19 +429,24 @@
       btn.addEventListener("click", async () => {
         const id = btn.dataset.noteId;
         const targetType = btn.dataset.targetType;
+        if (rewritingIds.has(id)) return;
         const rec = currentRecords.find((item) => item.id === id);
         if (!rec) return;
 
         const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
         if (!gasUrl) {
-          rec.therapyNote =
+          const demoNote =
             targetType === "Supportive"
               ? "治療標題：Supportive Psychotherapy - 情緒支持與親子壓力調適\n相關內容記載：針對個案近期情緒挫折與互動壓力，予以情緒同理與支持，協助家長緩解教養焦慮並維繫治療聯盟。"
               : "治療標題：Re-educative Psychotherapy - 注意力轉移與執行功能因應策略\n相關內容記載：針對個案近期寫作業拖延與情緒煩躁情形，協助家長釐清注意力轉換困難之機轉，並引導建立分段任務與正向回饋等行為因應策略。";
+          currentRecords = currentRecords.map((item) =>
+            item.id === id ? { ...item, therapyNote: demoNote } : item
+          );
           renderRecords();
           return;
         }
 
+        rewritingIds.add(id);
         btn.disabled = true;
         btn.textContent = "轉換中…";
         try {
@@ -449,11 +466,15 @@
           if (!json.ok || !json.therapyNote) {
             throw new Error(json.error || "轉換失敗");
           }
-          rec.therapyNote = json.therapyNote;
+          mutationEpoch++;
+          currentRecords = currentRecords.map((item) =>
+            item.id === id ? { ...item, therapyNote: json.therapyNote } : item
+          );
+          rewritingIds.delete(id);
           renderRecords();
         } catch (err) {
-          btn.disabled = false;
-          btn.textContent = `切換為 ${targetType}`;
+          rewritingIds.delete(id);
+          renderRecords();
           if (err.message !== "unauthorized") {
             alert("轉換治療紀錄失敗，請稍後再試");
           }
@@ -488,6 +509,7 @@
     try {
       const json = await doctorPost({ action: "setClinicOpen", open: nextOpen });
       if (json.ok) {
+        mutationEpoch++;
         clinicOpen = Boolean(json.clinicOpen);
         renderClinicStatus();
       }
@@ -524,15 +546,15 @@
       }
     }
     renderClinicStatus();
-    fetchRecords();
+    fetchRecords(false);
     stopPolling();
     const interval = window.CLINIC_CONFIG?.POLL_INTERVAL_MS || 15000;
-    pollTimer = setInterval(fetchRecords, interval);
+    pollTimer = setInterval(() => fetchRecords(true), interval);
   }
 
   toggleClinicBtn.addEventListener("click", toggleClinicOpen);
   filterSelect.addEventListener("change", renderRecords);
-  refreshBtn.addEventListener("click", fetchRecords);
+  refreshBtn.addEventListener("click", () => fetchRecords(false));
 
   initAuth();
 })();

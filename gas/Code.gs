@@ -357,7 +357,7 @@ function generateBlogGuide_(questionText, candidates, lang) {
     suitable: Boolean(parsed.suitable),
     summary: String(parsed.summary || "").trim(),
     followUpQuestion: String(parsed.followUpQuestion || "").trim(),
-    therapyNote: String(parsed.therapyNote || "").trim(),
+    therapyNote: formatTherapyNote_(parsed.therapyNote),
     translatedOtherDetail: String(parsed.translatedOtherDetail || "").trim(),
     selectedUrls: Array.isArray(parsed.selectedUrls)
       ? parsed.selectedUrls
@@ -443,12 +443,18 @@ function handleFollowUpChat_(message, history, candidates, lang) {
 
   return {
     reply: String(parsed.reply || "").trim(),
-    therapyNote: String(parsed.therapyNote || "").trim(),
+    therapyNote: formatTherapyNote_(parsed.therapyNote),
     translatedMessage: String(parsed.translatedMessage || "").trim(),
     selectedUrls: Array.isArray(parsed.selectedUrls)
       ? parsed.selectedUrls
       : [],
   };
+}
+
+function formatTherapyNote_(text) {
+  return String(text || "")
+    .trim()
+    .replace(/\s*(相關內容記載：)/g, "\n$1");
 }
 
 function rewriteTherapyNote_(targetType, currentNote, contextText) {
@@ -487,7 +493,7 @@ function rewriteTherapyNote_(targetType, currentNote, contextText) {
   );
 
   return parsed && parsed.therapyNote
-    ? String(parsed.therapyNote).trim()
+    ? formatTherapyNote_(parsed.therapyNote)
     : "";
 }
 
