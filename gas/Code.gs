@@ -13,23 +13,33 @@
 const SHEET_NAME = "門診登記";
 const GEMINI_MODEL = "gemini-4-hydrogen";
 const HEADERS = [
-  "ID",
-  "登記時間",
   "日期",
-  "小朋友姓名/診號",
-  "同來家長",
+  "時間",
+  "看診狀態",
+  "姓名/診號",
+  "家長",
   "Q1看診狀況",
   "Q2假日服藥",
   "剩餘藥量(天)",
   "近期狀況",
   "勾選問題",
-  "自傷風險",
-  "其他補充",
-  "評估診斷證明",
-  "系統推薦文章",
-  "看診狀態",
-  "心理治療紀錄(Supportive/Re-educative)",
+  "其他補充/對話",
+  "評估/診斷證明",
+  "心理治療紀錄",
+  "推薦衛教文章",
+  "系統ID",
 ];
+
+function formatSheetHeader_(sheet) {
+  sheet.appendRow(HEADERS);
+  sheet.setFrozenRows(1);
+  const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+  headerRange
+    .setBackground("#1f6f78")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+  sheet.getRange("K:N").setWrap(true);
+}
 
 function getOrCreateSheet_() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -44,17 +54,19 @@ function getOrCreateSheet_() {
     }
   }
   let sheet = ss.getSheetByName(SHEET_NAME);
+  if (sheet && sheet.getLastRow() > 0 && String(sheet.getRange(1, 1).getValue()) === "ID") {
+    // 舊版欄位格式自動備份，建立新版 15 欄格式
+    const backupName =
+      "門診登記_舊版_" +
+      Utilities.formatDate(new Date(), "Asia/Taipei", "MMdd_HHmm");
+    sheet.setName(backupName);
+    sheet = null;
+  }
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(HEADERS);
-    sheet.setFrozenRows(1);
+    formatSheetHeader_(sheet);
   } else if (sheet.getLastRow() === 0) {
-    sheet.appendRow(HEADERS);
-    sheet.setFrozenRows(1);
-  } else if (sheet.getLastColumn() < HEADERS.length) {
-    for (let c = sheet.getLastColumn() + 1; c <= HEADERS.length; c++) {
-      sheet.getRange(1, c).setValue(HEADERS[c - 1]);
-    }
+    formatSheetHeader_(sheet);
   }
   return sheet;
 }
@@ -89,9 +101,9 @@ function doGet(e) {
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const rowDate =
-      r[2] instanceof Date
-        ? Utilities.formatDate(r[2], "Asia/Taipei", "yyyy-MM-dd")
-        : String(r[2] || "");
+      r[0] instanceof Date
+        ? Utilities.formatDate(r[0], "Asia/Taipei", "yyyy-MM-dd")
+        : String(r[0] || "");
 
     if (filterDate !== "all" && rowDate !== filterDate) {
       continue;
@@ -102,29 +114,31 @@ function doGet(e) {
         ? Utilities.formatDate(r[1], "Asia/Taipei", "HH:mm")
         : String(r[1] || "");
 
+    const issuesArr = String(r[9] || "")
+      .split("；")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     records.push({
-      id: String(r[0] || ""),
-      timestamp: rowTime,
       date: rowDate,
+      timestamp: rowTime,
+      status: String(r[2] || "待看診"),
       childName: String(r[3] || ""),
       parent: String(r[4] || ""),
       q1: String(r[5] || ""),
       q2: String(r[6] || ""),
       medDays: String(r[7] || ""),
       recentStatus: String(r[8] || ""),
-      issues: String(r[9] || "")
-        .split("；")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      selfHarm: r[10] === true || String(r[10]) === "是",
-      otherDetail: String(r[11] || ""),
-      certDetail: String(r[12] || ""),
+      issues: issuesArr,
+      selfHarm: issuesArr.indexOf("傷害自己") !== -1,
+      otherDetail: String(r[10] || ""),
+      certDetail: String(r[11] || ""),
+      therapyNote: String(r[12] || ""),
       recommendedTitles: String(r[13] || "")
         .split("；")
         .map((s) => s.trim())
         .filter(Boolean),
-      status: String(r[14] || "待看診"),
-      therapyNote: String(r[15] || ""),
+      id: String(r[14] || ""),
     });
   }
 
@@ -161,9 +175,12 @@ function generateBlogGuide_(questionText, candidates) {
     "2. 若 suitable 為 true，請『只根據提供的文章內容』撰寫一段 200～300 字的繁體中文導讀，語氣溫暖好讀，禁止自行編造原文以外的醫療建議或劑量指示。結尾請固定加上：「更多資訊請點選下面連結：」",
     "3. selectedUrls 請填入最相關的 1～2 篇文章連結（必須完全符合上方提供的連結）。",
     "4. 如果家長的問題寫得比較籠統（例如「最近不太好」、「老師說偷東西」、「情緒不好」），或沒有適合的文章，請在 followUpQuestion 提出 1～2 個簡短、好回答的事實釐清問題（例如發生頻率、持續多久、誘發情境），幫醫師先收集脈絡；若問題已很明確且有適合文章，followUpQuestion 可留空字串。",
-    "5. 請同時在 therapyNote 產生一段供醫師參考的「支持性／再教育性心理治療紀錄草稿（Supportive / Re-educative Psychotherapy）」，依據個案狀況與衛教重點（若 suitable 為 true 則結合衛教內容），嚴格使用以下格式：",
-    "治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy / Supportive & Re-educative Psychotherapy） - <簡短主題>",
-    "相關內容記載：<以專業簡潔的病歷紀錄語氣，條列或分段記載本次衛教核心、情緒支持或認知/行為再教育重點，約 80～150 字>",
+    "5. 請在 therapyNote 產生一段符合台灣精神科門診病歷記載規範的「支持性／再教育性心理治療紀錄草稿」，嚴格遵守以下原則：",
+    "   - 不可出現「衛教」、「看文章」、「部落格」等字眼（健保審查會將純衛教視為一般診察而不予給付），請轉化為心理治療技術用語（如：情緒支持與同理、挫折耐受度引導、認知再架構、行為因應策略訓練、親子溝通界線建立、病識感與治療順從性強化）。",
+    "   - 嚴禁虛構尚未發生的診間對話或個案反應！只根據家長已知的主訴與本次參考方向撰寫，並保留「診間會談與反應：(待看診後補充)」讓醫師補填。",
+    "   - 格式嚴格為：",
+    "治療標題：Supportive Psychotherapy（或 Re-educative Psychotherapy） - <具體主題>",
+    "相關內容記載：<簡潔個別化的焦點與心理治療介入方向，約 60～120 字>\n診間會談與反應：（待看診後由醫師補充）",
     "",
     `【家長的問題與狀況】\n${questionText}`,
     "",
@@ -324,12 +341,12 @@ function appendNoteToRow_(sheet, targetId, noteText) {
   if (!targetId || !noteText) return;
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]) === targetId) {
-      const existing = String(rows[i][11] || "").trim();
+    if (String(rows[i][14]) === targetId) {
+      const existing = String(rows[i][10] || "").trim();
       const updated = existing
         ? `${existing}\n[對話補充] ${noteText}`
         : `[對話補充] ${noteText}`;
-      sheet.getRange(i + 1, 12).setValue(updated);
+      sheet.getRange(i + 1, 11).setValue(updated);
       return;
     }
   }
@@ -355,8 +372,8 @@ function doPost(e) {
       const nextStatus = String(payload.status || "已看診");
       const rows = sheet.getDataRange().getValues();
       for (let i = 1; i < rows.length; i++) {
-        if (String(rows[i][0]) === targetId) {
-          sheet.getRange(i + 1, 15).setValue(nextStatus);
+        if (String(rows[i][14]) === targetId) {
+          sheet.getRange(i + 1, 3).setValue(nextStatus);
           return jsonResponse_({ ok: true, id: targetId, status: nextStatus });
         }
       }
@@ -401,6 +418,12 @@ function doPost(e) {
       ? d.certDetail || "需要評估/診斷證明（未填細節）"
       : "";
 
+    // 若狀況穩定純拿藥且無補充問題，不產出心理治療紀錄
+    const hasClinicalIssue =
+      (d.issues && d.issues.length > 0) ||
+      Boolean((d.otherDetail || "").trim()) ||
+      d.q1 === "要與醫師討論";
+
     // 若無自傷風險且有提供候選文章，請 Gemini 判斷適配度並產出導讀
     let aiGuide = null;
     if (!d.selfHarm && payload.questionText && payload.candidates) {
@@ -416,12 +439,15 @@ function doPost(e) {
         ? []
         : d.recommendedTitles || [];
 
-    const therapyNote = (aiGuide && aiGuide.therapyNote) || "";
+    const therapyNote =
+      hasClinicalIssue && aiGuide && aiGuide.therapyNote
+        ? aiGuide.therapyNote
+        : "";
 
     sheet.appendRow([
-      id,
-      timeStr,
       dateStr,
+      timeStr,
+      "待看診",
       d.childName || "",
       d.parent || "",
       d.q1 || "",
@@ -429,12 +455,11 @@ function doPost(e) {
       d.medDays || "",
       d.recentStatus || "",
       (d.issues || []).join("；"),
-      d.selfHarm ? "是" : "否",
       d.otherDetail || "",
       certText,
-      recommendedTitles.join("；"),
-      "待看診",
       therapyNote,
+      recommendedTitles.join("；"),
+      id,
     ]);
 
     return jsonResponse_({ ok: true, id: id, aiGuide: aiGuide });

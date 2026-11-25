@@ -14,7 +14,7 @@ c# 工作紀錄 (WORKLOG)
    - 看板上方直接顯示「個案填寫網址」與「複製網址」按鈕。
 3. **Google Apps Script 後端與 Gemini AI 導讀**（`gas/Code.gs`、`gas/appsscript.json`）
    - 已透過 `clasp` 綁定並部署至版本 `@5`（首次執行自動建立 `兒青門診登記表` Google 試算表）。
-   - 整合 `gemini-4-hydrogen`（Gemini 4 最經濟版本）進行適配度判斷（不適合不硬塞）、200～300 字原文導讀、追問補充，並自動產出 `Supportive / Re-educative Psychotherapy` 病歷紀錄草稿（寫入試算表 P 欄並於 `doctor.html` 提供一鍵複製）。
+   - 整合 `gemini-4-hydrogen`（Gemini 4 最經濟版本）進行適配度判斷（不適合不硬塞）、200～300 字原文導讀、追問補充，並依健保規範產出不含「衛教」字眼、不腦補會談反應的 `Supportive / Re-educative Psychotherapy` 半成品草稿（寫入精簡 15 欄試算表，並於 `doctor.html` 提供一鍵複製）。
 4. **GitHub Pages ＆ 自動同步部署**（`8807p3/opdcase`）
    - 已完成 `gh` CLI 認證與 GitHub Pages（`main` 分支）部署。
    - 已設定 `.github/workflows/sync-blog.yml` 每日凌晨自動同步部落格新文章，並啟用 GitHub Actions `write` 權限。
