@@ -15,6 +15,7 @@
   const recordsList = document.getElementById("records-list");
   const filterSelect = document.getElementById("filter-status");
   const refreshBtn = document.getElementById("refresh-btn");
+  const lockBtn = document.getElementById("lock-btn");
   const lastUpdated = document.getElementById("last-updated");
 
   const DEMO_RECORDS = [
@@ -56,6 +57,12 @@
 
   let currentRecords = [];
   let clinicOpen = true;
+  let sessionPin = "";
+  let pinRequired = true;
+  let pollTimer = null;
+  let eventsBound = false;
+
+  const PIN_STORAGE_KEY = "clinic_doctor_pin";
 
   function renderClinicStatus() {
     if (clinicOpen) {
@@ -77,24 +84,152 @@
       .replace(/"/g, "&quot;");
   }
 
-  function initAuth() {
-    const requiredPin = (window.CLINIC_CONFIG?.DOCTOR_PIN || "").trim();
-    if (!requiredPin) {
-      pinGate.classList.add("hidden");
-      dashboard.classList.remove("hidden");
-      startDashboard();
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function lockDashboard(errMsg) {
+    stopPolling();
+    sessionPin = "";
+    try {
+      sessionStorage.removeItem(PIN_STORAGE_KEY);
+    } catch (e) {}
+    dashboard.classList.add("hidden");
+    pinGate.classList.remove("hidden");
+    pinInput.value = "";
+    if (errMsg) {
+      pinError.textContent = errMsg;
+      pinError.classList.remove("hidden");
+    } else {
+      pinError.classList.add("hidden");
+    }
+    pinInput.focus();
+  }
+
+  function unlockDashboard() {
+    pinError.classList.add("hidden");
+    pinGate.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    if (lockBtn) {
+      lockBtn.classList.toggle("hidden", !pinRequired);
+    }
+    startDashboard();
+  }
+
+  async function doctorPost(payload) {
+    const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+    const resp = await fetch(gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ ...payload, pin: sessionPin }),
+    });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const json = await resp.json();
+    if (json.unauthorized) {
+      lockDashboard("密碼已變更或驗證失效，請重新輸入。");
+      throw new Error("unauthorized");
+    }
+    return json;
+  }
+
+  async function verifyAndEnter(pinValue, isSilentAuto) {
+    const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+    pinBtn.disabled = true;
+    pinBtn.textContent = "驗證中…";
+    pinError.classList.add("hidden");
+    try {
+      const resp = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "verifyPin", pin: pinValue }),
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const json = await resp.json();
+      if (json.ok) {
+        sessionPin = pinValue;
+        pinRequired = json.pinRequired !== false;
+        try {
+          if (pinRequired && pinValue) {
+            sessionStorage.setItem(PIN_STORAGE_KEY, pinValue);
+          } else {
+            sessionStorage.removeItem(PIN_STORAGE_KEY);
+          }
+        } catch (e) {}
+        unlockDashboard();
+      } else {
+        if (isSilentAuto) {
+          try {
+            sessionStorage.removeItem(PIN_STORAGE_KEY);
+          } catch (e) {}
+        } else {
+          pinError.textContent = json.error || "密碼不正確，請再試一次。";
+          pinError.classList.remove("hidden");
+          pinInput.select();
+        }
+      }
+    } catch (err) {
+      if (!isSilentAuto) {
+        pinError.textContent = "連線驗證失敗，請檢查網路或 GAS 部署。";
+        pinError.classList.remove("hidden");
+      }
+    } finally {
+      pinBtn.disabled = false;
+      pinBtn.textContent = "進入看板";
+    }
+  }
+
+  async function initAuth() {
+    const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
+    if (!gasUrl) {
+      pinRequired = false;
+      unlockDashboard();
       return;
     }
 
     pinBtn.addEventListener("click", () => {
-      if (pinInput.value === requiredPin) {
-        pinGate.classList.add("hidden");
-        dashboard.classList.remove("hidden");
-        startDashboard();
-      } else {
-        pinError.classList.remove("hidden");
+      verifyAndEnter(pinInput.value.trim(), false);
+    });
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        verifyAndEnter(pinInput.value.trim(), false);
       }
     });
+
+    let savedPin = "";
+    try {
+      savedPin = sessionStorage.getItem(PIN_STORAGE_KEY) || "";
+    } catch (e) {}
+
+    if (savedPin) {
+      await verifyAndEnter(savedPin, true);
+      return;
+    }
+
+    pinBtn.disabled = true;
+    pinBtn.textContent = "檢查設定中…";
+    try {
+      const resp = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "checkPinStatus" }),
+      });
+      const json = await resp.json();
+      if (json.ok && json.pinRequired === false) {
+        pinRequired = false;
+        unlockDashboard();
+        return;
+      }
+    } catch (err) {
+      // Keep PIN gate visible if status check fails
+    } finally {
+      pinBtn.disabled = false;
+      pinBtn.textContent = "進入看板";
+    }
+    pinInput.focus();
   }
 
   async function fetchRecords() {
@@ -111,8 +246,7 @@
 
     modeNotice.classList.add("hidden");
     try {
-      const resp = await fetch(`${gasUrl}?t=${Date.now()}`);
-      const json = await resp.json();
+      const json = await doctorPost({ action: "getRecords" });
       if (json.ok) {
         currentRecords = json.records || [];
         if (typeof json.clinicOpen === "boolean") {
@@ -125,6 +259,7 @@
           new Date().toLocaleTimeString("zh-TW", { hour12: false });
       }
     } catch (err) {
+      if (err.message === "unauthorized") return;
       modeNotice.classList.remove("hidden");
       modeNotice.textContent = "讀取資料失敗，請檢查網路或 GAS 部署權限。";
     }
@@ -141,17 +276,18 @@
     if (!gasUrl) return;
 
     try {
-      const resp = await fetch(gasUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "markDone", id, status: nextStatus }),
+      const json = await doctorPost({
+        action: "markDone",
+        id,
+        status: nextStatus,
       });
-      const json = await resp.json();
       if (!json.ok) throw new Error(json.error || "Update failed");
     } catch (err) {
       currentRecords = prevRecords;
       renderRecords();
-      alert("更新狀態失敗，請稍後再試");
+      if (err.message !== "unauthorized") {
+        alert("更新狀態失敗，請稍後再試");
+      }
     }
   }
 
@@ -303,18 +439,13 @@
           ]
             .filter(Boolean)
             .join("；");
-          const resp = await fetch(gasUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              action: "rewriteTherapyNote",
-              id,
-              targetType,
-              currentNote: rec.therapyNote,
-              context,
-            }),
+          const json = await doctorPost({
+            action: "rewriteTherapyNote",
+            id,
+            targetType,
+            currentNote: rec.therapyNote,
+            context,
           });
-          const json = await resp.json();
           if (!json.ok || !json.therapyNote) {
             throw new Error(json.error || "轉換失敗");
           }
@@ -323,7 +454,9 @@
         } catch (err) {
           btn.disabled = false;
           btn.textContent = `切換為 ${targetType}`;
-          alert("轉換治療紀錄失敗，請稍後再試");
+          if (err.message !== "unauthorized") {
+            alert("轉換治療紀錄失敗，請稍後再試");
+          }
         }
       });
     });
@@ -353,18 +486,15 @@
     }
     toggleClinicBtn.disabled = true;
     try {
-      const resp = await fetch(gasUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "setClinicOpen", open: nextOpen }),
-      });
-      const json = await resp.json();
+      const json = await doctorPost({ action: "setClinicOpen", open: nextOpen });
       if (json.ok) {
         clinicOpen = Boolean(json.clinicOpen);
         renderClinicStatus();
       }
     } catch (err) {
-      alert("切換狀態失敗，請稍後再試");
+      if (err.message !== "unauthorized") {
+        alert("切換狀態失敗，請稍後再試");
+      }
     } finally {
       toggleClinicBtn.disabled = false;
     }
@@ -376,21 +506,28 @@
       patientUrlLink.href = patientUrl;
       patientUrlLink.textContent = patientUrl;
     }
-    if (copyUrlBtn) {
-      copyUrlBtn.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(patientUrl);
-          copyUrlBtn.textContent = "已複製！";
-          setTimeout(() => (copyUrlBtn.textContent = "複製網址"), 1500);
-        } catch (err) {
-          prompt("請手動複製個案填寫網址：", patientUrl);
-        }
-      });
+    if (!eventsBound) {
+      eventsBound = true;
+      if (copyUrlBtn) {
+        copyUrlBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(patientUrl);
+            copyUrlBtn.textContent = "已複製！";
+            setTimeout(() => (copyUrlBtn.textContent = "複製網址"), 1500);
+          } catch (err) {
+            prompt("請手動複製個案填寫網址：", patientUrl);
+          }
+        });
+      }
+      if (lockBtn) {
+        lockBtn.addEventListener("click", () => lockDashboard(""));
+      }
     }
     renderClinicStatus();
     fetchRecords();
+    stopPolling();
     const interval = window.CLINIC_CONFIG?.POLL_INTERVAL_MS || 15000;
-    setInterval(fetchRecords, interval);
+    pollTimer = setInterval(fetchRecords, interval);
   }
 
   toggleClinicBtn.addEventListener("click", toggleClinicOpen);

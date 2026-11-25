@@ -512,19 +512,13 @@
     aiGuideBox.classList.add("hidden");
     aiGuideBox.textContent = "";
 
-    let guideTimer = null;
     if (data.selfHarm) {
       resultGuideSection.classList.add("hidden");
       chatSection.classList.add("hidden");
     } else {
       resultGuideSection.classList.remove("hidden");
       chatSection.classList.remove("hidden");
-      let waitSec = 0;
-      resultArticlesHint.textContent = t("guideLoadingSec", 0);
-      guideTimer = setInterval(() => {
-        waitSec++;
-        resultArticlesHint.textContent = t("guideLoadingSec", waitSec);
-      }, 1000);
+      resultArticlesHint.textContent = t("guideLoading");
       renderArticles(resultArticlesBox, posts);
     }
 
@@ -532,11 +526,18 @@
     resultView.classList.remove("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    let waitSec = 0;
     submitStatus.className = "alert alert-info";
-    submitStatus.textContent = t("statusSending");
+    submitStatus.style.fontWeight = "600";
+    submitStatus.textContent = t("statusSendingSec", 0);
+    const submitTimer = setInterval(() => {
+      waitSec++;
+      submitStatus.textContent = t("statusSendingSec", waitSec);
+    }, 1000);
 
     const res = await sendToGas(data, questionText, aiCandidates);
-    if (guideTimer) clearInterval(guideTimer);
+    clearInterval(submitTimer);
+    submitStatus.style.fontWeight = "";
     currentRecordId = res.id || "";
     if (res.ok) {
       submitStatus.className = "alert alert-info";

@@ -69,6 +69,7 @@ window.CLINIC_I18N = {
     footerNote:
       "本系統僅供候診前整理問題與衛教閱讀參考，不代表醫療診斷或處方建議。",
     statusSending: "正在傳送資料給診間…",
+    statusSendingSec: (s) => `⏳ 正在傳送資料給診間…（已等待 ${s} 秒）`,
     statusSent: "✅ 已傳送給診間醫師！請在候診區稍候。",
     statusNoGas:
       "📋 已為您整理好看診重點小卡，進診間時請出示此畫面給醫師參考。",
@@ -172,6 +173,8 @@ window.CLINIC_I18N = {
     footerNote:
       "Hệ thống chỉ hỗ trợ tổng hợp câu hỏi trước khi khám và cung cấp tài liệu tham khảo, không thay thế chẩn đoán hay kê đơn y khoa.",
     statusSending: "Đang gửi thông tin đến phòng khám…",
+    statusSendingSec: (s) =>
+      `⏳ Đang gửi thông tin đến phòng khám… (${s} giây)`,
     statusSent: "✅ Đã gửi đến bác sĩ! Vui lòng ngồi chờ tại khu vực đợi khám.",
     statusNoGas:
       "📋 Đã tạo phiếu tóm tắt khám bệnh. Khi vào phòng khám, vui lòng đưa màn hình này cho bác sĩ xem.",

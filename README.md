@@ -11,7 +11,7 @@
 
 - `index.html`：家長填寫的看診前調查表＋衛教文章推薦
 - `doctor.html`：醫師端診間即時看板
-- `assets/config.js`：系統設定（填入 GAS 網址與看板密碼）
+- `assets/config.js`：系統設定（填入 GAS 網址與輪詢間隔；看板密碼由試算表 `Config` 分頁與 GAS 後端管理）
 - `assets/search.js`：中文關鍵字＋同義詞搜尋引擎
 - `data/posts.json`：已同步的 297 篇部落格文章索引
 - `gas/Code.gs`：Google Apps Script 後端程式
@@ -37,7 +37,8 @@
 5. 授權後，複製產生的 **網頁應用程式網址**（`https://script.google.com/macros/s/.../exec`）。
 
 ### 步驟 2：填入設定檔並推上 GitHub Pages
-1. 打開 `assets/config.js`，將剛複製的網址貼到 `GAS_URL: "..."` 中（也可順便設定 `DOCTOR_PIN` 作為看板密碼）。
+1. 打開 `assets/config.js`，將剛複製的網址貼到 `GAS_URL: "..."` 中。
+2. （選用）首次執行後，系統會於試算表自動建立 `Config` 分頁（預設 `DOCTOR_PIN` 為 `58100`），您可直接在試算表內修改醫師看板密碼，即時生效且不外洩至前端程式碼。
 2. 將整個資料夾推上您的 GitHub Repository。
 3. 到 GitHub Repository 的 **Settings → Pages**：
    - Source 選擇 **Deploy from a branch**

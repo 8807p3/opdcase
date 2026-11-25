@@ -11,6 +11,8 @@
  */
 
 const SHEET_NAME = "門診登記";
+const CONFIG_SHEET_NAME = "Config";
+const DEFAULT_DOCTOR_PIN = "58100";
 const GEMINI_MODEL = "gemini-4-hydrogen";
 const GEMINI_FALLBACK_MODEL = "gemini-2.5-flash";
 const HEADERS = [
@@ -42,7 +44,7 @@ function formatSheetHeader_(sheet) {
   sheet.getRange("K:N").setWrap(true);
 }
 
-function getOrCreateSheet_() {
+function getSpreadsheet_() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
     const props = PropertiesService.getScriptProperties();
@@ -54,6 +56,36 @@ function getOrCreateSheet_() {
       props.setProperty("SPREADSHEET_ID", ss.getId());
     }
   }
+  return ss;
+}
+
+function getOrCreateConfigSheet_(ss) {
+  let configSheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+  if (!configSheet) {
+    configSheet = ss.insertSheet(CONFIG_SHEET_NAME);
+    configSheet.appendRow(["參數名稱", "參數值", "說明"]);
+    configSheet.setFrozenRows(1);
+    configSheet
+      .getRange(1, 1, 1, 3)
+      .setBackground("#1f6f78")
+      .setFontColor("#ffffff")
+      .setFontWeight("bold");
+    configSheet.getRange("B:B").setNumberFormat("@");
+    configSheet.appendRow([
+      "DOCTOR_PIN",
+      DEFAULT_DOCTOR_PIN,
+      "醫師診間看板存取密碼（留空則不設密碼，修改後即時生效）",
+    ]);
+    configSheet.setColumnWidth(1, 160);
+    configSheet.setColumnWidth(2, 180);
+    configSheet.setColumnWidth(3, 440);
+  }
+  return configSheet;
+}
+
+function getOrCreateSheet_() {
+  const ss = getSpreadsheet_();
+  getOrCreateConfigSheet_(ss);
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (sheet && sheet.getLastRow() > 0 && String(sheet.getRange(1, 1).getValue()) === "ID") {
     // 舊版欄位格式自動備份，建立新版 15 欄格式
@@ -72,6 +104,48 @@ function getOrCreateSheet_() {
   return sheet;
 }
 
+function getDoctorPin_() {
+  const ss = getSpreadsheet_();
+  const configSheet = getOrCreateConfigSheet_(ss);
+  const rows = configSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || "").trim() === "DOCTOR_PIN") {
+      const val = rows[i][1];
+      return val === null || val === undefined ? "" : String(val).trim();
+    }
+  }
+  return "";
+}
+
+function verifyDoctorPin_(providedPin) {
+  const expected = getDoctorPin_();
+  if (!expected) return true;
+  if (String(providedPin || "").trim() === expected) return true;
+  Utilities.sleep(300);
+  return false;
+}
+
+function requireDoctorAuth_(providedPin) {
+  if (!verifyDoctorPin_(providedPin)) {
+    return jsonResponse_({
+      ok: false,
+      unauthorized: true,
+      error: "密碼不正確或未授權存取",
+    });
+  }
+  return null;
+}
+
+function withSheetLock_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function isClinicOpen_() {
   const val = PropertiesService.getScriptProperties().getProperty("CLINIC_OPEN");
   return val !== "false";
@@ -83,12 +157,8 @@ function jsonResponse_(obj) {
   );
 }
 
-function doGet(e) {
+function getRecordsResponse_(requestedDate) {
   const clinicOpen = isClinicOpen_();
-  if (e && e.parameter && e.parameter.action === "status") {
-    return jsonResponse_({ ok: true, clinicOpen: clinicOpen });
-  }
-
   const sheet = getOrCreateSheet_();
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) {
@@ -96,7 +166,7 @@ function doGet(e) {
   }
 
   const todayStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd");
-  const filterDate = (e && e.parameter && e.parameter.date) || todayStr;
+  const filterDate = requestedDate || todayStr;
 
   const records = [];
   for (let i = 1; i < rows.length; i++) {
@@ -151,6 +221,18 @@ function doGet(e) {
     clinicOpen: clinicOpen,
     records: records,
   });
+}
+
+function doGet(e) {
+  const clinicOpen = isClinicOpen_();
+  if (e && e.parameter && e.parameter.action === "status") {
+    return jsonResponse_({ ok: true, clinicOpen: clinicOpen });
+  }
+
+  const authErr = requireDoctorAuth_(e && e.parameter ? e.parameter.pin : "");
+  if (authErr) return authErr;
+
+  return getRecordsResponse_(e && e.parameter ? e.parameter.date : "");
 }
 
 function callGeminiJson_(prompt, responseSchema, temperature) {
@@ -443,7 +525,31 @@ function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
 
+    if (payload.action === "checkPinStatus") {
+      return jsonResponse_({
+        ok: true,
+        pinRequired: getDoctorPin_() !== "",
+      });
+    }
+
+    if (payload.action === "verifyPin") {
+      const authErr = requireDoctorAuth_(payload.pin);
+      if (authErr) return authErr;
+      return jsonResponse_({
+        ok: true,
+        pinRequired: getDoctorPin_() !== "",
+      });
+    }
+
+    if (payload.action === "getRecords") {
+      const authErr = requireDoctorAuth_(payload.pin);
+      if (authErr) return authErr;
+      return getRecordsResponse_(payload.date);
+    }
+
     if (payload.action === "setClinicOpen") {
+      const authErr = requireDoctorAuth_(payload.pin);
+      if (authErr) return authErr;
       const nextOpen = Boolean(payload.open);
       PropertiesService.getScriptProperties().setProperty(
         "CLINIC_OPEN",
@@ -452,9 +558,9 @@ function doPost(e) {
       return jsonResponse_({ ok: true, clinicOpen: nextOpen });
     }
 
-    const sheet = getOrCreateSheet_();
-
     if (payload.action === "rewriteTherapyNote") {
+      const authErr = requireDoctorAuth_(payload.pin);
+      if (authErr) return authErr;
       const targetId = String(payload.id || "");
       const targetType =
         payload.targetType === "Supportive" ? "Supportive" : "Re-educative";
@@ -466,25 +572,41 @@ function doPost(e) {
       if (!newNote) {
         return jsonResponse_({ ok: false, error: "改寫失敗，請稍後再試" });
       }
-      const rows = sheet.getDataRange().getValues();
-      for (let i = 1; i < rows.length; i++) {
-        if (String(rows[i][14]) === targetId) {
-          sheet.getRange(i + 1, 13).setValue(newNote);
-          return jsonResponse_({ ok: true, id: targetId, therapyNote: newNote });
+      const updated = withSheetLock_(() => {
+        const sheet = getOrCreateSheet_();
+        const rows = sheet.getDataRange().getValues();
+        for (let i = 1; i < rows.length; i++) {
+          if (String(rows[i][14]) === targetId) {
+            sheet.getRange(i + 1, 13).setValue(newNote);
+            return true;
+          }
         }
+        return false;
+      });
+      if (updated) {
+        return jsonResponse_({ ok: true, id: targetId, therapyNote: newNote });
       }
       return jsonResponse_({ ok: false, error: "找不到該筆資料" });
     }
 
     if (payload.action === "markDone") {
+      const authErr = requireDoctorAuth_(payload.pin);
+      if (authErr) return authErr;
       const targetId = String(payload.id || "");
       const nextStatus = String(payload.status || "已看診");
-      const rows = sheet.getDataRange().getValues();
-      for (let i = 1; i < rows.length; i++) {
-        if (String(rows[i][14]) === targetId) {
-          sheet.getRange(i + 1, 3).setValue(nextStatus);
-          return jsonResponse_({ ok: true, id: targetId, status: nextStatus });
+      const updated = withSheetLock_(() => {
+        const sheet = getOrCreateSheet_();
+        const rows = sheet.getDataRange().getValues();
+        for (let i = 1; i < rows.length; i++) {
+          if (String(rows[i][14]) === targetId) {
+            sheet.getRange(i + 1, 3).setValue(nextStatus);
+            return true;
+          }
         }
+        return false;
+      });
+      if (updated) {
+        return jsonResponse_({ ok: true, id: targetId, status: nextStatus });
       }
       return jsonResponse_({ ok: false, error: "找不到該筆資料" });
     }
@@ -519,13 +641,16 @@ function doPost(e) {
         lang === "vi" && chatRes.translatedMessage
           ? `${message}（翻譯：${chatRes.translatedMessage}）`
           : message;
-      updateRowOnFollowUp_(
-        sheet,
-        targetId,
-        noteForDoctor,
-        hasNewArticles ? chatRes.therapyNote : "",
-        newTitles
-      );
+      withSheetLock_(() => {
+        const sheet = getOrCreateSheet_();
+        updateRowOnFollowUp_(
+          sheet,
+          targetId,
+          noteForDoctor,
+          hasNewArticles ? chatRes.therapyNote : "",
+          newTitles
+        );
+      });
       return jsonResponse_({
         ok: true,
         reply: chatRes.reply,
@@ -586,23 +711,26 @@ function doPost(e) {
         ? `${d.otherDetail}（翻譯：${aiGuide.translatedOtherDetail}）`
         : d.otherDetail || "";
 
-    sheet.appendRow([
-      dateStr,
-      timeStr,
-      "待看診",
-      d.childName || "",
-      d.parent || "",
-      d.q1 || "",
-      d.q2 || "",
-      d.medDays || "",
-      d.recentStatus || "",
-      (d.issues || []).join("；"),
-      otherDetailText,
-      certText,
-      therapyNote,
-      recommendedTitles.join("；"),
-      id,
-    ]);
+    withSheetLock_(() => {
+      const sheet = getOrCreateSheet_();
+      sheet.appendRow([
+        dateStr,
+        timeStr,
+        "待看診",
+        d.childName || "",
+        d.parent || "",
+        d.q1 || "",
+        d.q2 || "",
+        d.medDays || "",
+        d.recentStatus || "",
+        (d.issues || []).join("；"),
+        otherDetailText,
+        certText,
+        therapyNote,
+        recommendedTitles.join("；"),
+        id,
+      ]);
+    });
 
     return jsonResponse_({ ok: true, id: id, aiGuide: aiGuide });
   } catch (err) {

@@ -6,9 +6,7 @@ window.CLINIC_CONFIG = {
   // 範例: "https://script.google.com/macros/s/AKfycb.../exec"
   GAS_URL: "https://script.google.com/macros/s/AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb/exec",
 
-  // 醫師看板 (doctor.html) 的簡易存取密碼；留空則不設密碼
-  DOCTOR_PIN: "58100",
-
+  // 醫師看板密碼 (DOCTOR_PIN) 已移至 Google 試算表「Config」分頁並由 GAS 後端驗證
   // 診間看板自動更新間隔（毫秒）
   POLL_INTERVAL_MS: 15000,
 };
