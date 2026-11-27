@@ -241,10 +241,14 @@ function callGeminiJson_(prompt, responseSchema, temperature) {
   );
   if (!apiKey) return null;
 
-  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL];
-  for (let i = 0; i < models.length; i++) {
+  const modelConfigs = [
+    { name: GEMINI_MODEL, thinkingConfig: { thinkingLevel: "low" } },
+    { name: GEMINI_FALLBACK_MODEL, thinkingConfig: { thinkingBudget: 0 } },
+  ];
+  for (let i = 0; i < modelConfigs.length; i++) {
+    const modelCfg = modelConfigs[i];
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${models[i]}:generateContent?key=${encodeURIComponent(
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelCfg.name}:generateContent?key=${encodeURIComponent(
         apiKey
       )}`;
       const resp = UrlFetchApp.fetch(endpoint, {
@@ -257,28 +261,31 @@ function callGeminiJson_(prompt, responseSchema, temperature) {
             temperature: temperature,
             responseMimeType: "application/json",
             responseSchema: responseSchema,
+            thinkingConfig: modelCfg.thinkingConfig,
           },
         }),
       });
 
       if (resp.getResponseCode() !== 200) {
-        Logger.log(`Gemini ${models[i]} HTTP ${resp.getResponseCode()}: ${resp.getContentText()}`);
+        Logger.log(`Gemini ${modelCfg.name} HTTP ${resp.getResponseCode()}: ${resp.getContentText()}`);
         continue;
       }
       const body = JSON.parse(resp.getContentText());
-      const rawText =
+      const parts =
         body &&
         body.candidates &&
         body.candidates[0] &&
         body.candidates[0].content &&
-        body.candidates[0].content.parts &&
-        body.candidates[0].content.parts[0] &&
-        body.candidates[0].content.parts[0].text;
+        body.candidates[0].content.parts;
+      const textPart = Array.isArray(parts)
+        ? parts.find((p) => !p.thought && p.text) || parts[0]
+        : null;
+      const rawText = textPart && textPart.text;
       if (rawText) {
         return JSON.parse(rawText);
       }
     } catch (err) {
-      Logger.log(`Gemini ${models[i]} error: ${err}`);
+      Logger.log(`Gemini ${modelCfg.name} error: ${err}`);
     }
   }
   return null;
