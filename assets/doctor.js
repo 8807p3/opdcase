@@ -300,6 +300,58 @@
     }
   }
 
+  function formatHolidayMed(q2) {
+    if (q2 === "有") return "假日有服藥";
+    if (q2 === "沒有") return "假日沒服藥";
+    if (q2 === "看狀況") return "假日看狀況服藥";
+    if (q2 === "尚未服藥") return "尚未服藥";
+    return q2 ? `假日服藥：${q2}` : "";
+  }
+
+  function formatChartSummary(r) {
+    const parts = [];
+    if (r.parent) parts.push(`${r.parent}陪同`);
+    const medText = formatHolidayMed(r.q2);
+    if (medText) parts.push(medText);
+
+    if (r.medDays) {
+      parts.push(`剩餘${r.medDays}天`);
+    } else if (r.q2 !== "尚未服藥") {
+      parts.push("剩餘#");
+    }
+
+    const baseStatus =
+      r.recentStatus === "表現不錯！狀況穩定"
+        ? "近期狀況穩定"
+        : r.recentStatus === "狀況仍不穩定"
+        ? "近期狀況仍不穩定"
+        : r.recentStatus || "";
+    if (r.issues && r.issues.length > 0) {
+      const issueStr = r.issues.join("、");
+      parts.push(baseStatus ? `${baseStatus}（${issueStr}）` : issueStr);
+    } else if (baseStatus) {
+      parts.push(baseStatus);
+    }
+
+    if (r.otherDetail) {
+      parts.push(r.otherDetail.replace(/\s*\n+\s*/g, "；").trim());
+    }
+    if (r.certDetail) {
+      parts.push(`評估／診斷證明：${r.certDetail}`);
+    }
+    return parts.join(", ");
+  }
+
+  async function copyWithFeedback(btn, text, defaultLabel, fallbackPrompt) {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = "已複製！";
+      setTimeout(() => (btn.textContent = defaultLabel), 1500);
+    } catch (err) {
+      prompt(fallbackPrompt, text);
+    }
+  }
+
   function renderRecords() {
     const filter = filterSelect.value;
     const list = currentRecords.filter((r) => {
@@ -326,6 +378,7 @@
           : r.q1 || r.recentStatus;
 
         const nextStatus = isDone ? "待看診" : "已看診";
+        const summaryText = formatChartSummary(r);
 
         return `
         <article class="patient-card ${r.selfHarm ? "is-danger" : ""} ${
@@ -335,7 +388,7 @@
             <div>
               <span class="patient-name">${escapeHtml(r.childName)}</span>
               <span style="color:#64748b;font-size:0.9rem;margin-left:8px;">
-                ${escapeHtml(r.timestamp)} ｜ 家長：${escapeHtml(r.parent || "未填")}
+                ${escapeHtml(r.timestamp)}
               </span>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -351,33 +404,17 @@
           </div>
 
           <div style="font-size:0.94rem;line-height:1.65;">
-            <div><strong>假日服藥：</strong>${escapeHtml(
-              r.q2 || "未填"
-            )} ｜ <strong>剩餘藥量：</strong>${
-          r.medDays ? escapeHtml(r.medDays) + " 天" : "未填"
-        }</div>
-            ${
-              r.issues && r.issues.length > 0
-                ? `<div style="color:#b45309;"><strong>近期狀況：</strong>${r.issues
-                    .map(escapeHtml)
-                    .join("、")}</div>`
-                : `<div><strong>近期狀況：</strong>${escapeHtml(r.recentStatus)}</div>`
-            }
-            ${
-              r.otherDetail
-                ? `<div><strong>補充／問題：</strong>${escapeHtml(r.otherDetail)}</div>`
-                : ""
-            }
-            ${
-              r.certDetail
-                ? `<div style="color:#1f6f78;"><strong>評估／診斷證明：</strong>${escapeHtml(
-                    r.certDetail
-                  )}</div>`
-                : ""
-            }
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+              <div style="flex:1;color:${
+                r.issues && r.issues.length > 0 ? "#9a3412" : "#1e293b"
+              };">${escapeHtml(summaryText)}</div>
+              <button type="button" class="btn btn-secondary btn-sm copy-summary-btn" data-summary-id="${escapeHtml(
+                r.id
+              )}" style="width:auto;flex-shrink:0;padding:3px 10px;font-size:0.8rem;">複製</button>
+            </div>
             ${
               r.recommendedTitles && r.recommendedTitles.length > 0
-                ? `<div style="color:#64748b;font-size:0.86rem;margin-top:4px;">已推薦文章：${r.recommendedTitles
+                ? `<div style="color:#64748b;font-size:0.86rem;margin-top:6px;">已推薦文章：${r.recommendedTitles
                     .map(escapeHtml)
                     .join(" ／ ")}</div>`
                 : ""
@@ -422,6 +459,21 @@
     recordsList.querySelectorAll("button[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => {
         toggleDone(btn.dataset.id, btn.dataset.next);
+      });
+    });
+
+    recordsList.querySelectorAll(".copy-summary-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rec = currentRecords.find(
+          (item) => item.id === btn.dataset.summaryId
+        );
+        if (!rec) return;
+        copyWithFeedback(
+          btn,
+          formatChartSummary(rec),
+          "複製",
+          "請手動複製看診摘要："
+        );
       });
     });
 
@@ -483,16 +535,15 @@
     });
 
     recordsList.querySelectorAll(".copy-note-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         const rec = currentRecords.find((item) => item.id === btn.dataset.noteId);
         if (!rec || !rec.therapyNote) return;
-        try {
-          await navigator.clipboard.writeText(rec.therapyNote);
-          btn.textContent = "已複製！";
-          setTimeout(() => (btn.textContent = "複製紀錄"), 1500);
-        } catch (err) {
-          prompt("請手動複製心理治療紀錄：", rec.therapyNote);
-        }
+        copyWithFeedback(
+          btn,
+          rec.therapyNote,
+          "複製紀錄",
+          "請手動複製心理治療紀錄："
+        );
       });
     });
   }
