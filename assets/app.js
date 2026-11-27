@@ -8,6 +8,8 @@
   const formView = document.getElementById("form-view");
   const resultView = document.getElementById("result-view");
 
+  const visitNoInput = document.getElementById("visit-no");
+  const childNameInput = document.getElementById("child-name");
   const parentOtherInput = document.getElementById("parent-other");
   const statusStableRadio = document.getElementById("recent-stable");
   const statusUnstableRadio = document.getElementById("recent-unstable");
@@ -79,6 +81,28 @@
     if (liveArticlesBox && liveArticlesBox.children.length === 0) {
       liveArticlesHint.textContent = t("liveHintDefault");
     }
+    validatePatientIdentity();
+  }
+
+  function validatePatientIdentity() {
+    const visitNo = visitNoInput ? visitNoInput.value.trim() : "";
+    const childName = childNameInput ? childNameInput.value.trim() : "";
+    if (!visitNo && !childName) {
+      if (visitNoInput) {
+        visitNoInput.setCustomValidity(t("errVisitOrNameRequired"));
+      }
+      return false;
+    }
+    if (visitNoInput) visitNoInput.setCustomValidity("");
+    if (childNameInput) childNameInput.setCustomValidity("");
+    return true;
+  }
+
+  if (visitNoInput) {
+    visitNoInput.addEventListener("input", validatePatientIdentity);
+  }
+  if (childNameInput) {
+    childNameInput.addEventListener("input", validatePatientIdentity);
   }
 
   document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -229,7 +253,14 @@
   }
 
   function collectFormData(recommendedPosts) {
-    const childName = document.getElementById("child-name").value.trim();
+    const rawVisitNo = visitNoInput ? visitNoInput.value.trim() : "";
+    const formattedVisitNo = rawVisitNo
+      ? /^\d+$/.test(rawVisitNo)
+        ? `${rawVisitNo}號`
+        : rawVisitNo
+      : "";
+    const rawChildName = childNameInput ? childNameInput.value.trim() : "";
+    const childName = [formattedVisitNo, rawChildName].filter(Boolean).join(" ");
     const parentChoice =
       document.querySelector('input[name="parent"]:checked')?.value || "";
     const parent =
@@ -492,6 +523,10 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!validatePatientIdentity()) {
+      if (visitNoInput) visitNoInput.reportValidity();
+      return;
+    }
     const questionText = buildSearchQuery();
     const selectedIssues = getSelectedIssues();
     const freeText = buildFreeTextQuery();

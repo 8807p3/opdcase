@@ -41,8 +41,17 @@
         <section class="card">
           <h2 class="card-title" data-i18n="secBasic">基本資訊</h2>
           <div class="field-group">
-            <label class="field-label" for="child-name" data-i18n="lblChildName">小朋友姓名（或看診序號／暱稱）</label>
-            <input type="text" id="child-name" name="childName" data-i18n-ph="phChildName" placeholder="例如：王小明 或 15號" required />
+            <label class="field-label" data-i18n="lblPatientIdentity">看診號與小朋友姓名（兩者至少填寫一項）</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1 1 130px;">
+                <label class="hint" for="visit-no" style="display:block;margin:0 0 4px;" data-i18n="lblVisitNo">看診號</label>
+                <input type="text" id="visit-no" name="visitNo" inputmode="numeric" data-i18n-ph="phVisitNo" placeholder="例如：15 或 15號" />
+              </div>
+              <div style="flex:2 1 200px;">
+                <label class="hint" for="child-name" style="display:block;margin:0 0 4px;" data-i18n="lblChildName">小朋友姓名（或暱稱）</label>
+                <input type="text" id="child-name" name="childName" data-i18n-ph="phChildName" placeholder="例如：王小明" />
+              </div>
+            </div>
           </div>
 
           <div class="field-group">
@@ -137,6 +146,8 @@
           </div>
         </section>
 
+        <button type="submit" class="btn btn-primary" style="margin-bottom: 16px;" data-i18n="btnSubmit">送出調查表</button>
+
         <!-- 即時衛教文章推薦 -->
         <section class="card">
           <h2 class="card-title" data-i18n="secArticles">📖 《314風神學院》衛教文章即時推薦</h2>
@@ -146,8 +157,6 @@
           <input type="text" id="live-search-input" data-i18n-ph="phLiveSearch" placeholder="🔍 也可以直接輸入關鍵字搜尋文章（如：食慾、拖延、青春期）" />
           <div id="live-articles" class="article-list"></div>
         </section>
-
-        <button type="submit" class="btn btn-primary" data-i18n="btnSubmit">送出調查表</button>
       </form>
     </main>
 
@@ -188,9 +197,9 @@
     </p>
   </div>
 
-  <script src="./assets/config.js?v=14"></script>
-  <script src="./assets/i18n.js?v=14"></script>
-  <script src="./assets/search.js?v=14"></script>
-  <script src="./assets/app.js?v=14"></script>
+  <script src="./assets/config.js?v=15"></script>
+  <script src="./assets/i18n.js?v=15"></script>
+  <script src="./assets/search.js?v=15"></script>
+  <script src="./assets/app.js?v=15"></script>
 </body>
 </html>
