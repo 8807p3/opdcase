@@ -10,6 +10,8 @@
 
   const visitNoInput = document.getElementById("visit-no");
   const childNameInput = document.getElementById("child-name");
+  const clearSavedNameBtn = document.getElementById("clear-saved-name-btn");
+  const CHILD_NAME_STORAGE_KEY = "clinic_saved_child_name";
   const parentOtherInput = document.getElementById("parent-other");
   const statusStableRadio = document.getElementById("recent-stable");
   const statusUnstableRadio = document.getElementById("recent-unstable");
@@ -538,6 +540,10 @@
           : posts
         : [];
     const data = collectFormData(posts);
+    const rawChildName = childNameInput ? childNameInput.value.trim() : "";
+    if (rawChildName) {
+      saveChildName(rawChildName);
+    }
     lastSubmittedData = data;
     currentRecordId = "";
     chatHistory = [];
@@ -659,6 +665,41 @@
       // Keep form usable if status check fails
     }
   }
+
+  function saveChildName(name) {
+    try {
+      localStorage.setItem(CHILD_NAME_STORAGE_KEY, name);
+      if (clearSavedNameBtn) clearSavedNameBtn.classList.remove("hidden");
+    } catch (e) {}
+  }
+
+  function loadSavedChildName() {
+    if (!childNameInput) return;
+    try {
+      const savedName = localStorage.getItem(CHILD_NAME_STORAGE_KEY) || "";
+      if (savedName) {
+        childNameInput.value = savedName;
+        if (clearSavedNameBtn) clearSavedNameBtn.classList.remove("hidden");
+      }
+    } catch (e) {}
+  }
+
+  if (clearSavedNameBtn) {
+    clearSavedNameBtn.addEventListener("click", () => {
+      try {
+        localStorage.removeItem(CHILD_NAME_STORAGE_KEY);
+      } catch (e) {}
+      if (childNameInput) {
+        childNameInput.value = "";
+        childNameInput.focus();
+      }
+      clearSavedNameBtn.classList.add("hidden");
+      validatePatientIdentity();
+    });
+  }
+
+  // Restore saved child name before initial validation & language setup
+  loadSavedChildName();
 
   // Initialize language (saved preference or browser Vietnamese detection)
   let initLang = "zh";
