@@ -316,8 +316,6 @@
 
     if (r.medDays) {
       parts.push(`剩餘${r.medDays}天`);
-    } else if (r.q2 !== "尚未服藥") {
-      parts.push("剩餘#");
     }
 
     const baseStatus =
