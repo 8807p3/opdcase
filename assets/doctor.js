@@ -314,8 +314,9 @@
     const medText = formatHolidayMed(r.q2);
     if (medText) parts.push(medText);
 
-    if (r.medDays) {
-      parts.push(`剩餘${r.medDays}天`);
+    const medDays = String(r.medDays ?? "").trim();
+    if (medDays) {
+      parts.push(`剩餘 ${medDays} 天藥物`);
     }
 
     const baseStatus =
