@@ -28,7 +28,22 @@
 ### 正式網址與維運資訊
 - **家長／個案填寫網址（QR code）**：https://8807p3.github.io/opdcase/
 - **醫師端診間看板網址**：https://8807p3.github.io/opdcase/doctor.html
-- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@17`）
+- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@19`）
 - **日常更新指令**：
   - 前端修改：`git add . && git commit -m "update" && git push`
   - GAS 修改：`cd gas && clasp push -f && clasp deploy -i AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`
+
+---
+
+## 2026-11-27｜填寫流程、診間病歷摘要與 AI 速度優化
+
+### 完成項目
+1. **家長／個案端流程與輸入優化**（`index.html`、`assets/app.js`、`assets/i18n.js`、`assets/search.js`）
+   - 「看診號」與「小朋友姓名（或暱稱）」拆為並排兩欄，至少需填寫其中一項，送出時自動合併為 `看診號 姓名` 寫入試算表（純數字診號自動補 `號`）。
+   - 新增 `localStorage` 記憶「小朋友姓名」並附「清除記憶」按鈕，方便家長免重複輸入（不記憶看診號）。
+   - 將「送出調查表」按鈕移至《314風神學院》即時衛教推薦之前，避免家長分心忘記送出。
+2. **醫師端診間病歷一鍵複製**（`doctor.html`、`assets/doctor.js`）
+   - 將「陪同家長、假日服藥、剩餘 X 天藥物（未填則略過）、近期狀況、補充問題、證明需求」濃縮為單段病歷格式，右側新增「複製」按鈕直接貼入 HIS 病歷。
+3. **AI 推薦命中率與回應速度優化**（`gas/Code.gs`、`assets/app.js`、`assets/search.js`）
+   - AI 候選文章池由 3 篇 × 650 字擴增為 **5 篇 × 1200 字**，並於 `SYNONYMS` 補齊妥瑞／抽動、焦慮／強迫、拒學、情緒崩潰、3C／電玩等門診常用同義詞。
+   - `gemini-4-hydrogen` 設定 `thinkingConfig.thinkingLevel = "low"`、備援 `gemini-2.5-flash` 設定 `thinkingBudget = 0`，送出回應時間由 ~30 秒降至 ~12 秒（GAS 部署更新至 `@19`）。
