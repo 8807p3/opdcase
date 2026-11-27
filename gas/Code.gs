@@ -291,7 +291,7 @@ function generateBlogGuide_(questionText, candidates, lang) {
 
   const isVi = lang === "vi";
   const articlesBlock = (candidates || [])
-    .slice(0, 3)
+    .slice(0, 5)
     .map(
       (c, idx) =>
         `【文章 ${idx + 1}】\n標題：${c.title}\n連結：${c.url}\n內容：${c.text}`
@@ -379,7 +379,7 @@ function handleFollowUpChat_(message, history, candidates, lang) {
   }
 
   const articlesBlock = (candidates || [])
-    .slice(0, 3)
+    .slice(0, 5)
     .map(
       (c, idx) =>
         `【文章 ${idx + 1}】\n標題：${c.title}\n連結：${c.url}\n內容：${c.text}`

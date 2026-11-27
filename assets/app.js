@@ -360,6 +360,14 @@
     `;
   }
 
+  function formatCandidatesForAi(list) {
+    return (list || []).slice(0, 5).map((p) => ({
+      title: p.title,
+      url: p.url,
+      text: (p.text || "").slice(0, 1200),
+    }));
+  }
+
   async function sendToGas(data, questionText, candidates) {
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
     if (!gasUrl) {
@@ -375,11 +383,7 @@
           lang: currentLang,
           data,
           questionText,
-          candidates: (candidates || []).slice(0, 3).map((p) => ({
-            title: p.title,
-            url: p.url,
-            text: (p.text || "").slice(0, 650),
-          })),
+          candidates: formatCandidatesForAi(candidates),
         }),
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
@@ -492,11 +496,7 @@
           id: currentRecordId,
           message: msg,
           history: chatHistory,
-          candidates: aiCandidates.slice(0, 3).map((p) => ({
-            title: p.title,
-            url: p.url,
-            text: (p.text || "").slice(0, 650),
-          })),
+          candidates: formatCandidatesForAi(aiCandidates),
         }),
       });
       const json = await resp.json();
@@ -536,7 +536,7 @@
     const aiCandidates =
       selectedIssues.length > 0 || freeText
         ? window.BlogSearch.getAiCandidates
-          ? await window.BlogSearch.getAiCandidates(freeText, 3, selectedIssues)
+          ? await window.BlogSearch.getAiCandidates(freeText, 5, selectedIssues)
           : posts
         : [];
     const data = collectFormData(posts);
