@@ -239,6 +239,19 @@ def sync_all_posts() -> dict:
 def main() -> None:
     payload = sync_all_posts()
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if OUTPUT_PATH.exists():
+        try:
+            existing = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+            if (
+                existing.get("posts") == payload["posts"]
+                and existing.get("totalReported") == payload["totalReported"]
+            ):
+                print(
+                    f"No changes across {payload['total']} posts; skipped overwriting {OUTPUT_PATH}"
+                )
+                return
+        except Exception:
+            pass
     OUTPUT_PATH.write_text(
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",

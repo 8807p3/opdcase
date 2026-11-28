@@ -2,8 +2,8 @@ name: Sync Blogger Posts
 
 on:
   schedule:
-    # 每天台灣時間凌晨 03:00 自動執行 (UTC 19:00)
-    - cron: "0 19 * * *"
+    # 每週一、週四台灣時間凌晨 03:00 自動執行 (UTC 週日、週三 19:00)
+    - cron: "0 19 * * 0,3"
   workflow_dispatch:
 
 permissions:
