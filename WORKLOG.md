@@ -28,7 +28,7 @@
 ### 正式網址與維運資訊
 - **家長／個案填寫網址（QR code）**：https://8807p3.github.io/opdcase/
 - **醫師端診間看板網址**：https://8807p3.github.io/opdcase/doctor.html
-- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@20`）
+- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@21`）
 - **日常更新指令**：
   - 前端修改：`git add . && git commit -m "update" && git push`
   - GAS 修改（Windows PowerShell 請用 `clasp.cmd`）：`cd gas; & "$env:APPDATA\npm\clasp.cmd" push -f; & "$env:APPDATA\npm\clasp.cmd" deploy -i AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`
@@ -61,9 +61,10 @@
    - 支援繁體中文版即時套用試算表 `Config` 的 `MSG_*` 客製提示語。
 3. **醫師／護理共用看板與接力計時**（`doctor.html`、`assets/doctor.js`、`assets/style.css`）
    - 頂端新增 **初診模式開關**（`📱 掃碼自填` ⇄ `👩‍⚕️ 專人詢問`）、**看板視角切換**（`🩺 醫師看診` ⇄ `👩‍⚕️ 護理跟診`，記憶於 `localStorage`）與 **＋快速登錄個案**。
-   - 完整狀態流：`初診待問` → `初診已問完`／`待看診` → `測驗／問卷中`（暫停累計）→ `測驗完成待看` → `看診中`（置頂即時計時 `mm:ss`、點下一位自動結案上一位）→ `已看診`。
-   - 新增頂端即時統計列（各狀態人數、平均等待／平均看診分鐘數）及醫師端可點選「診間屬性標籤」＋「診間備註 (Free Typing)」。
-   - 部署 GAS 至版本 `@20` 並同步更新 `README.md`。
+   - 完整狀態流：`初診待問` → `初診已問完`／`待看診` → `測驗／問卷中`（僅顯示 `📝 去測驗／問卷` 靜態徽章，背景照樣累計測驗暫離分鐘數）→ `測驗完成待看` → `看診中`（置頂即時計時 `mm:ss`、點下一位自動結案上一位）→ `已看診`。
+   - 醫師與護理視角皆可直接點擊 `DOCTOR_TAGS`（支援於 `Config` 自訂 Emoji 標籤如 `⚡優先`、`😡生氣`、`🕊️放鴿子`），醫師視角保留「診間備註 (Free Typing)」；新增頂端即時統計列。
+   - 掃碼自填初診改為報到後自動同分頁跳轉初診表單（保留備用連結防呆）；開關按鈕加上 `.btn:disabled` 樣式、「切換中…」狀態與 `AbortController` 超時保護，並於密碼登入畫面直接整合「今日初診模式」選擇開關（通過密碼驗證才寫入後端）。
+   - 部署 GAS 至版本 `@21` 並同步更新 `README.md`。
 
 ### 待辦／保留事項
 - 年齡／學齡選項暫緩（先以現況實際跑診觀察）。
