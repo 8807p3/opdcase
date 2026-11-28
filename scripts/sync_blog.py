@@ -6,6 +6,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,7 +15,7 @@ from pathlib import Path
 
 BLOG_FEED_BASE = "https://goodadhd.blogspot.com/feeds/posts/default"
 PAGE_SIZE = 150
-BODY_MAX_CHARS = 1000
+BODY_MAX_CHARS = 1200
 SUMMARY_MAX_CHARS = 140
 MIN_ARTICLE_CHARS = 120
 EXCLUDED_TITLES = {"隱私權政策", "免責聲明", "版權聲明", "privacy", "about"}
@@ -41,21 +42,38 @@ def clean_html(raw: str) -> str:
     return WS_RE.sub(" ", text).strip()
 
 
-def fetch_full_post_text(url: str) -> str:
-    """Fetch the full article page and extract .post-body plain text."""
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ClinicChatbotSync/1.0)"},
-        )
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            page_html = resp.read().decode("utf-8", "ignore")
-        match = POST_BODY_RE.search(page_html)
-        if match:
-            return clean_html(match.group(1))
-    except Exception:
-        pass
+def fetch_full_post_text(url: str, retries: int = 3) -> str:
+    """Fetch the full article page and extract .post-body plain text with retries."""
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; ClinicChatbotSync/1.0)"},
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                page_html = resp.read().decode("utf-8", "ignore")
+            match = POST_BODY_RE.search(page_html)
+            if match:
+                return clean_html(match.group(1))
+        except Exception:
+            if attempt < retries - 1:
+                time.sleep(0.8 * (attempt + 1))
     return ""
+
+
+def load_previous_posts() -> dict[str, dict]:
+    """Load existing posts keyed by URL as fallback when full-text fetch fails transiently."""
+    if not OUTPUT_PATH.exists():
+        return {}
+    try:
+        data = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+        return {
+            p["url"]: p
+            for p in data.get("posts", [])
+            if isinstance(p, dict) and p.get("url")
+        }
+    except Exception:
+        return {}
 
 
 def fetch_feed_page(start_index: int, max_results: int) -> dict:
@@ -149,7 +167,7 @@ def sync_all_posts() -> dict:
     # Hydrate full content for posts truncated by Blogger jump breaks
     to_fetch = [p for p in raw_posts if p["_needsFullFetch"]]
     if to_fetch:
-        with ThreadPoolExecutor(max_workers=10) as pool:
+        with ThreadPoolExecutor(max_workers=4) as pool:
             future_map = {
                 pool.submit(fetch_full_post_text, p["url"]): p for p in to_fetch
             }
@@ -159,12 +177,33 @@ def sync_all_posts() -> dict:
                 if len(full_text) > len(post["_plainText"]):
                     post["_plainText"] = full_text
 
+    prev_by_url = load_previous_posts()
     posts: list[dict] = []
     excluded_count = 0
+    preserved_count = 0
     for p in raw_posts:
         title_lower = p["title"].strip().lower()
         plain_text = p["_plainText"]
-        if title_lower in EXCLUDED_TITLES or len(plain_text) < MIN_ARTICLE_CHARS:
+        if title_lower in EXCLUDED_TITLES:
+            excluded_count += 1
+            continue
+
+        if len(plain_text) < MIN_ARTICLE_CHARS:
+            prev = prev_by_url.get(p["url"])
+            if p["_needsFullFetch"] and prev and len(prev.get("text", "")) >= MIN_ARTICLE_CHARS:
+                preserved_count += 1
+                posts.append(
+                    {
+                        "title": p["title"],
+                        "url": p["url"],
+                        "published": p["published"],
+                        "tags": p["tags"],
+                        "charCount": prev.get("charCount", len(prev["text"])),
+                        "summary": prev.get("summary", prev["text"][:SUMMARY_MAX_CHARS]),
+                        "text": prev["text"],
+                    }
+                )
+                continue
             excluded_count += 1
             continue
 
@@ -191,6 +230,7 @@ def sync_all_posts() -> dict:
         "updatedAt": datetime.now(tw_tz).strftime("%Y-%m-%d %H:%M:%S"),
         "total": len(posts),
         "excludedCount": excluded_count,
+        "preservedCount": preserved_count,
         "totalReported": total_reported,
         "posts": posts,
     }
