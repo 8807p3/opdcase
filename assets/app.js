@@ -12,6 +12,21 @@
   const childNameInput = document.getElementById("child-name");
   const clearSavedNameBtn = document.getElementById("clear-saved-name-btn");
   const CHILD_NAME_STORAGE_KEY = "clinic_saved_child_name";
+  const headerDescEl = document.getElementById("header-desc");
+  const closedBannerEl = document.getElementById("closed-banner");
+  const firstVisitPanel = document.getElementById("first-visit-panel");
+  const firstVisitMsgEl = document.getElementById("first-visit-msg");
+  const firstVisitViNoteEl = document.getElementById("first-visit-vi-note");
+  const firstVisitStaffActions = document.getElementById("first-visit-staff-actions");
+  const firstVisitSelfActions = document.getElementById("first-visit-self-actions");
+  const fvStaffBtn = document.getElementById("fv-staff-btn");
+  const fvChildBtn = document.getElementById("fv-child-btn");
+  const fvAdultBtn = document.getElementById("fv-adult-btn");
+  const followupFields = document.getElementById("followup-fields");
+  const firstVisitLinkCard = document.getElementById("first-visit-link-card");
+  const firstVisitResultViNote = document.getElementById("first-visit-result-vi-note");
+  const firstVisitFormLink = document.getElementById("first-visit-form-link");
+  const firstVisitMissingUrl = document.getElementById("first-visit-missing-url");
   const parentOtherInput = document.getElementById("parent-other");
   const statusStableRadio = document.getElementById("recent-stable");
   const statusUnstableRadio = document.getElementById("recent-unstable");
@@ -44,6 +59,8 @@
   let chatHistory = [];
   let lastSubmittedData = null;
   let currentLang = "zh";
+  let firstVisitMode = "self";
+  let publicConfig = {};
 
   function t(key, ...args) {
     const dict =
@@ -53,6 +70,74 @@
     const val = dict[key];
     return typeof val === "function" ? val(...args) : val || "";
   }
+
+  function getTextOrOverride(i18nKey, configKey, ...args) {
+    if (currentLang === "zh" && configKey && publicConfig[configKey]) {
+      return publicConfig[configKey];
+    }
+    return t(i18nKey, ...args);
+  }
+
+  function applyPublicConfigOverrides() {
+    if (headerDescEl) {
+      headerDescEl.textContent = getTextOrOverride("headerDesc", "MSG_HEADER_DESC");
+    }
+    if (closedBannerEl) {
+      if (currentLang === "zh" && publicConfig.MSG_CLOSED_BANNER) {
+        closedBannerEl.textContent = publicConfig.MSG_CLOSED_BANNER;
+      } else {
+        closedBannerEl.innerHTML = t("closedBanner");
+      }
+    }
+    if (firstVisitMsgEl) {
+      firstVisitMsgEl.textContent =
+        firstVisitMode === "staff"
+          ? getTextOrOverride("msgFirstVisitStaff", "MSG_FIRST_VISIT_STAFF")
+          : getTextOrOverride("msgFirstVisitSelf", "MSG_FIRST_VISIT_SELF");
+    }
+    const viNotice = t("msgFirstVisitViNote");
+    if (firstVisitViNoteEl) {
+      const showVi = currentLang === "vi" && firstVisitMode === "self" && Boolean(viNotice);
+      firstVisitViNoteEl.textContent = viNotice;
+      firstVisitViNoteEl.classList.toggle("hidden", !showVi);
+    }
+  }
+
+  function syncVisitCategoryUI() {
+    const selected =
+      document.querySelector('input[name="visitCategory"]:checked')?.value ||
+      "followup";
+    const isFirst = selected === "first";
+    if (followupFields) {
+      followupFields.classList.toggle("hidden", isFirst);
+    }
+    if (firstVisitPanel) {
+      firstVisitPanel.classList.toggle("hidden", !isFirst);
+    }
+    if (firstVisitStaffActions) {
+      firstVisitStaffActions.classList.toggle(
+        "hidden",
+        firstVisitMode !== "staff"
+      );
+    }
+    if (firstVisitSelfActions) {
+      firstVisitSelfActions.classList.toggle(
+        "hidden",
+        firstVisitMode === "staff"
+      );
+    }
+    const parentFirstRadio = document.querySelector('input[name="parent"]');
+    const q1FirstRadio = document.querySelector('input[name="q1"]');
+    const q2FirstRadio = document.querySelector('input[name="q2"]');
+    if (parentFirstRadio) parentFirstRadio.required = !isFirst;
+    if (q1FirstRadio) q1FirstRadio.required = !isFirst;
+    if (q2FirstRadio) q2FirstRadio.required = !isFirst;
+    applyPublicConfigOverrides();
+  }
+
+  document.querySelectorAll('input[name="visitCategory"]').forEach((radio) => {
+    radio.addEventListener("change", syncVisitCategoryUI);
+  });
 
   function applyLanguage(lang) {
     currentLang = lang === "vi" ? "vi" : "zh";
@@ -83,6 +168,7 @@
     if (liveArticlesBox && liveArticlesBox.children.length === 0) {
       liveArticlesHint.textContent = t("liveHintDefault");
     }
+    applyPublicConfigOverrides();
     validatePatientIdentity();
   }
 
@@ -254,7 +340,7 @@
       .replace(/"/g, "&quot;");
   }
 
-  function collectFormData(recommendedPosts) {
+  function getIdentityFields() {
     const rawVisitNo = visitNoInput ? visitNoInput.value.trim() : "";
     const formattedVisitNo = rawVisitNo
       ? /^\d+$/.test(rawVisitNo)
@@ -262,7 +348,12 @@
         : rawVisitNo
       : "";
     const rawChildName = childNameInput ? childNameInput.value.trim() : "";
-    const childName = [formattedVisitNo, rawChildName].filter(Boolean).join(" ");
+    const displayName = [formattedVisitNo, rawChildName].filter(Boolean).join(" ");
+    return { formattedVisitNo, rawChildName, displayName };
+  }
+
+  function collectFormData(recommendedPosts) {
+    const { formattedVisitNo, rawChildName, displayName } = getIdentityFields();
     const parentChoice =
       document.querySelector('input[name="parent"]:checked')?.value || "";
     const parent =
@@ -286,8 +377,11 @@
     const certDetail = certDetailInput.value.trim();
 
     return {
+      visitCategory: "followup",
       timestamp: new Date().toLocaleString("zh-TW", { hour12: false }),
-      childName,
+      visitNo: formattedVisitNo,
+      childName: rawChildName,
+      displayName,
       parent,
       q1,
       q2,
@@ -303,6 +397,21 @@
   }
 
   function renderSummaryCard(data) {
+    if (data.visitCategory === "first") {
+      summaryCard.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <strong style="font-size:1.15rem;">${escapeHtml(
+            data.displayName || data.childName || t("sumUnfilled")
+          )}</strong>
+          <span class="badge badge-discuss">${escapeHtml(t("sumVisitFirst"))}</span>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-row">${escapeHtml(data.timestamp)}</div>
+        </div>
+      `;
+      return;
+    }
+
     const statusBadge = data.selfHarm
       ? `<span class="badge badge-danger">${escapeHtml(t("sumBadgeDanger"))}</span>`
       : data.q1 === "要與醫師討論" || data.recentStatus === "狀況仍不穩定"
@@ -312,7 +421,7 @@
     summaryCard.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <strong style="font-size:1.15rem;">${escapeHtml(
-          data.childName || t("sumUnfilled")
+          data.displayName || data.childName || t("sumUnfilled")
         )}</strong>
         ${statusBadge}
       </div>
@@ -523,12 +632,123 @@
     }
   });
 
+  async function submitFirstVisit(target) {
+    if (!validatePatientIdentity()) {
+      if (visitNoInput) visitNoInput.reportValidity();
+      return;
+    }
+    const { formattedVisitNo, rawChildName, displayName } = getIdentityFields();
+    if (rawChildName) {
+      saveChildName(rawChildName);
+    }
+    const data = {
+      visitCategory: "first",
+      firstVisitTarget: target,
+      timestamp: new Date().toLocaleString("zh-TW", { hour12: false }),
+      visitNo: formattedVisitNo,
+      childName: rawChildName,
+      displayName,
+    };
+    lastSubmittedData = data;
+    currentRecordId = "";
+    chatHistory = [];
+    chatMessagesBox.innerHTML = "";
+
+    renderSummaryCard(data);
+    aiGuideBox.classList.add("hidden");
+    aiGuideBox.textContent = "";
+    resultGuideSection.classList.add("hidden");
+    chatSection.classList.add("hidden");
+    if (firstVisitLinkCard) firstVisitLinkCard.classList.add("hidden");
+
+    formView.classList.add("hidden");
+    resultView.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    let waitSec = 0;
+    submitStatus.className = "alert alert-info";
+    submitStatus.style.fontWeight = "600";
+    submitStatus.textContent = t("statusSendingSec", 0);
+    const submitTimer = setInterval(() => {
+      waitSec++;
+      submitStatus.textContent = t("statusSendingSec", waitSec);
+    }, 1000);
+
+    const res = await sendToGas(data, "", []);
+    clearInterval(submitTimer);
+    submitStatus.style.fontWeight = "";
+    currentRecordId = res.id || "";
+
+    if (res.ok) {
+      submitStatus.className = "alert alert-info";
+      submitStatus.textContent = getTextOrOverride(
+        "statusFirstVisitSent",
+        "MSG_FIRST_VISIT_DONE"
+      );
+    } else if (res.reason === "closed") {
+      resultView.classList.add("hidden");
+      formView.classList.add("hidden");
+      closedView.classList.remove("hidden");
+      return;
+    } else if (res.reason === "no_gas") {
+      submitStatus.className = "alert alert-warning";
+      submitStatus.textContent = t("statusNoGas");
+    } else {
+      submitStatus.className = "alert alert-warning";
+      submitStatus.textContent = t("statusNetErr");
+    }
+
+    if (firstVisitLinkCard && firstVisitMode === "self") {
+      const targetUrl =
+        target === "adult"
+          ? (publicConfig.FIRST_VISIT_ADULT_URL || "").trim()
+          : (publicConfig.FIRST_VISIT_CHILD_URL || "").trim();
+      firstVisitLinkCard.classList.remove("hidden");
+      if (firstVisitResultViNote) {
+        const viNotice = t("msgFirstVisitViNote");
+        const showVi = currentLang === "vi" && Boolean(viNotice);
+        firstVisitResultViNote.textContent = viNotice;
+        firstVisitResultViNote.classList.toggle("hidden", !showVi);
+      }
+      if (targetUrl) {
+        if (firstVisitFormLink) {
+          firstVisitFormLink.href = targetUrl;
+          firstVisitFormLink.classList.remove("hidden");
+        }
+        if (firstVisitMissingUrl) firstVisitMissingUrl.classList.add("hidden");
+      } else {
+        if (firstVisitFormLink) firstVisitFormLink.classList.add("hidden");
+        if (firstVisitMissingUrl) {
+          firstVisitMissingUrl.classList.remove("hidden");
+        }
+      }
+    }
+  }
+
+  if (fvStaffBtn) {
+    fvStaffBtn.addEventListener("click", () => submitFirstVisit("staff"));
+  }
+  if (fvChildBtn) {
+    fvChildBtn.addEventListener("click", () => submitFirstVisit("child"));
+  }
+  if (fvAdultBtn) {
+    fvAdultBtn.addEventListener("click", () => submitFirstVisit("adult"));
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!validatePatientIdentity()) {
       if (visitNoInput) visitNoInput.reportValidity();
       return;
     }
+    const visitCategory =
+      document.querySelector('input[name="visitCategory"]:checked')?.value ||
+      "followup";
+    if (visitCategory === "first") {
+      submitFirstVisit(firstVisitMode === "staff" ? "staff" : "child");
+      return;
+    }
+
     const questionText = buildSearchQuery();
     const selectedIssues = getSelectedIssues();
     const freeText = buildFreeTextQuery();
@@ -540,9 +760,8 @@
           : posts
         : [];
     const data = collectFormData(posts);
-    const rawChildName = childNameInput ? childNameInput.value.trim() : "";
-    if (rawChildName) {
-      saveChildName(rawChildName);
+    if (data.childName) {
+      saveChildName(data.childName);
     }
     lastSubmittedData = data;
     currentRecordId = "";
@@ -552,6 +771,7 @@
     renderSummaryCard(data);
     aiGuideBox.classList.add("hidden");
     aiGuideBox.textContent = "";
+    if (firstVisitLinkCard) firstVisitLinkCard.classList.add("hidden");
 
     if (data.selfHarm) {
       resultGuideSection.classList.add("hidden");
@@ -582,7 +802,10 @@
     currentRecordId = res.id || "";
     if (res.ok) {
       submitStatus.className = "alert alert-info";
-      submitStatus.textContent = t("statusSent");
+      submitStatus.textContent = getTextOrOverride(
+        "statusSent",
+        "MSG_FOLLOWUP_SENT"
+      );
     } else if (res.reason === "closed") {
       resultView.classList.add("hidden");
       formView.classList.add("hidden");
@@ -652,14 +875,26 @@
 
   async function checkClinicStatus() {
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
-    if (!gasUrl) return;
+    if (!gasUrl) {
+      syncVisitCategoryUI();
+      return;
+    }
     try {
       const resp = await fetch(`${gasUrl}?action=status&t=${Date.now()}`);
       const json = await resp.json();
-      if (json.ok && json.clinicOpen === false) {
-        formView.classList.add("hidden");
-        resultView.classList.add("hidden");
-        closedView.classList.remove("hidden");
+      if (json.ok) {
+        if (json.firstVisitMode === "staff" || json.firstVisitMode === "self") {
+          firstVisitMode = json.firstVisitMode;
+        }
+        if (json.publicConfig && typeof json.publicConfig === "object") {
+          publicConfig = json.publicConfig;
+        }
+        syncVisitCategoryUI();
+        if (json.clinicOpen === false) {
+          formView.classList.add("hidden");
+          resultView.classList.add("hidden");
+          closedView.classList.remove("hidden");
+        }
       }
     } catch (err) {
       // Keep form usable if status check fails
@@ -712,6 +947,7 @@
     }
   } catch (e) {}
   applyLanguage(initLang);
+  syncVisitCategoryUI();
 
   // Preload blog index & check clinic status
   window.BlogSearch.loadPosts().catch(() => {});

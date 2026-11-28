@@ -495,3 +495,159 @@ textarea {
   background: #f0f9fa;
   text-decoration: underline;
 }
+
+/* Doctor / Nurse Dashboard Enhancements */
+.patient-card.is-active-consult {
+  border-color: #0f766e;
+  border-left: 6px solid #0f766e;
+  background: #f0fdfa;
+}
+
+.patient-card.is-paused-test {
+  border-left: 5px solid #7c3aed;
+  background: #faf5ff;
+}
+
+.patient-card.is-test-ready {
+  border-left: 5px solid #0284c7;
+  background: #f0f9ff;
+}
+
+.patient-card.is-first-pending {
+  border-left: 5px solid #d97706;
+}
+
+.badge-active-consult {
+  background: #0f766e;
+  color: #fff;
+}
+
+.badge-paused-test {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badge-test-ready {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-first-visit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-lang-vi {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.stats-bar strong {
+  color: var(--primary-dark);
+}
+
+.role-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.role-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.role-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.doctor-meta-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tag-chip {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.tag-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.doctor-note-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.doctor-note-input {
+  flex: 1;
+  padding: 6px 10px !important;
+  font-size: 0.85rem !important;
+  border-radius: 8px !important;
+}
+
+.action-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.live-timer-pill {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.live-timer-pill.is-pause {
+  background: #ede9fe;
+  color: #5b21b6;
+}

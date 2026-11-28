@@ -16,14 +16,14 @@
           <button type="button" class="lang-btn" data-lang="vi">Tiếng Việt</button>
         </div>
       </div>
-      <p data-i18n="headerDesc">請家長依孩子近期狀況填寫，送出後系統也會從《314風神學院》推薦相關衛教文章供候診閱讀。</p>
+      <p id="header-desc" data-i18n="headerDesc">請家長依孩子近期狀況填寫，送出後系統也會從《314風神學院》推薦相關衛教文章供候診閱讀。</p>
     </header>
 
     <!-- 非門診時間提示畫面 -->
     <main id="closed-view" class="hidden">
       <section class="card">
         <h2 class="card-title" data-i18n="closedTitle">🕒 目前為非門診時段</h2>
-        <div class="alert alert-warning" style="margin-top:0;" data-i18n-html="closedBanner">
+        <div id="closed-banner" class="alert alert-warning" style="margin-top:0;" data-i18n-html="closedBanner">
           目前門診調查表暫停填寫，請於<strong>看診當日</strong>再掃描 QR code 登記。
         </div>
         <p class="hint" style="margin-top:12px;" data-i18n="closedHint">
@@ -58,15 +58,47 @@
           </div>
 
           <div class="field-group">
-            <label class="field-label" data-i18n="lblParent">同來的家長</label>
-            <div class="option-grid">
-              <label class="option-pill"><input type="radio" name="parent" value="媽媽" required /> <span data-i18n="optMom">媽媽</span></label>
-              <label class="option-pill"><input type="radio" name="parent" value="爸爸" /> <span data-i18n="optDad">爸爸</span></label>
-              <label class="option-pill"><input type="radio" name="parent" value="其他" /> <span data-i18n="optOther">其他</span></label>
+            <label class="field-label" data-i18n="lblVisitCategory">這次來看診是？</label>
+            <div class="check-list">
+              <label class="option-pill selected">
+                <input type="radio" name="visitCategory" value="followup" checked />
+                <span data-i18n="optVisitFollowup">複診（以前來看過）</span>
+              </label>
+              <label class="option-pill">
+                <input type="radio" name="visitCategory" value="first" />
+                <span data-i18n="optVisitFirst">初診（第一次來／未填過初診表）</span>
+              </label>
             </div>
-            <input type="text" id="parent-other" class="hidden" style="margin-top: 8px;" data-i18n-ph="phParentOther" placeholder="請填寫稱謂（例如：阿嬤、姑姑）" />
           </div>
         </section>
+
+        <!-- 初診分流區塊 -->
+        <section id="first-visit-panel" class="card hidden">
+          <h2 class="card-title" data-i18n="secFirstVisit">🆕 初診報到與填寫指引</h2>
+          <div id="first-visit-msg" class="alert alert-info" style="margin-top:0;margin-bottom:12px;"></div>
+          <div id="first-visit-vi-note" class="alert alert-warning hidden" style="margin-top:0;margin-bottom:12px;"></div>
+          <div id="first-visit-staff-actions" class="hidden">
+            <button type="button" id="fv-staff-btn" class="btn btn-primary" data-i18n="btnFirstVisitStaff">完成初診報到</button>
+          </div>
+          <div id="first-visit-self-actions">
+            <button type="button" id="fv-child-btn" class="btn btn-primary" data-i18n="btnFirstVisitChild">👶 兒童／青少年初診（報到並填寫表單）</button>
+            <button type="button" id="fv-adult-btn" class="btn btn-secondary" style="margin-top:10px;width:100%;" data-i18n="btnFirstVisitAdult">🧑 成人／大人初診（報到並填寫表單）</button>
+          </div>
+        </section>
+
+        <div id="followup-fields">
+          <!-- 同來的家長 -->
+          <section class="card">
+            <div class="field-group">
+              <label class="field-label" data-i18n="lblParent">同來的家長</label>
+              <div class="option-grid">
+                <label class="option-pill"><input type="radio" name="parent" value="媽媽" required /> <span data-i18n="optMom">媽媽</span></label>
+                <label class="option-pill"><input type="radio" name="parent" value="爸爸" /> <span data-i18n="optDad">爸爸</span></label>
+                <label class="option-pill"><input type="radio" name="parent" value="其他" /> <span data-i18n="optOther">其他</span></label>
+              </div>
+              <input type="text" id="parent-other" class="hidden" style="margin-top: 8px;" data-i18n-ph="phParentOther" placeholder="請填寫稱謂（例如：阿嬤、姑姑）" />
+            </div>
+          </section>
 
         <!-- Q1 & Q2 -->
         <section class="card">
@@ -150,6 +182,7 @@
         </section>
 
         <button type="submit" class="btn btn-primary" style="margin-bottom: 16px;" data-i18n="btnSubmit">送出調查表</button>
+        </div>
 
         <!-- 即時衛教文章推薦 -->
         <section class="card">
@@ -166,6 +199,13 @@
     <!-- 送出後畫面 -->
     <main id="result-view" class="hidden">
       <div id="submit-status" class="alert alert-info"></div>
+
+      <section id="first-visit-link-card" class="card hidden">
+        <h2 class="card-title" data-i18n="secFirstVisit">🆕 初診報到與填寫指引</h2>
+        <div id="first-visit-result-vi-note" class="alert alert-warning hidden" style="margin-top:0;margin-bottom:12px;"></div>
+        <a id="first-visit-form-link" href="#" target="_blank" rel="noopener" class="btn btn-primary" style="text-decoration:none;" data-i18n="btnOpenFirstVisitForm">👉 前往填寫線上初診表單</a>
+        <div id="first-visit-missing-url" class="alert alert-warning hidden" style="margin-top:10px;" data-i18n="msgFirstVisitMissingUrl"></div>
+      </section>
 
       <section class="card">
         <h2 class="card-title" data-i18n="secSummary">📋 看診重點小卡</h2>
@@ -200,9 +240,9 @@
     </p>
   </div>
 
-  <script src="./assets/config.js?v=17"></script>
-  <script src="./assets/i18n.js?v=17"></script>
-  <script src="./assets/search.js?v=17"></script>
-  <script src="./assets/app.js?v=17"></script>
+  <script src="./assets/config.js?v=18"></script>
+  <script src="./assets/i18n.js?v=18"></script>
+  <script src="./assets/search.js?v=18"></script>
+  <script src="./assets/app.js?v=18"></script>
 </body>
 </html>

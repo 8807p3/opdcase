@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>診間即時看板｜兒青門診</title>
-  <link rel="stylesheet" href="./assets/style.css?v=7" />
+  <link rel="stylesheet" href="./assets/style.css?v=19" />
 </head>
 <body>
   <div class="container wide">
     <header class="header">
       <h1>診間即時看板</h1>
-      <p>自動同步候診個案填寫的看診前調查表，方便醫師看診前快速掌握重點。</p>
+      <p>自動同步候診個案報到與狀態接力，支援醫師看診／護理跟診視角切換與時間統計。</p>
     </header>
 
     <section id="pin-gate" class="card" style="max-width:400px;margin:30px auto;">
@@ -27,22 +27,85 @@
     <main id="dashboard" class="hidden">
       <div id="mode-notice" class="alert alert-warning hidden" style="margin-bottom:14px;"></div>
 
-      <section class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-        <div>
-          <strong style="font-size:1.02rem;">門診填寫開關：</strong>
-          <span id="clinic-status-badge" class="badge badge-stable">🟢 開放填寫中</span>
-          <div style="margin-top:6px;font-size:0.88rem;color:#475569;">
+      <section class="card" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong>門診填寫：</strong>
+            <span id="clinic-status-badge" class="badge badge-stable">🟢 門診開放填寫中</span>
+            <button type="button" id="toggle-clinic-btn" class="btn btn-secondary btn-sm" style="width:auto;padding:4px 10px;font-size:0.8rem;">點擊關閉填寫（下診）</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong>初診模式：</strong>
+            <span id="fv-mode-badge" class="badge badge-first-visit">📱 掃碼自填</span>
+            <button type="button" id="toggle-fv-mode-btn" class="btn btn-secondary btn-sm" style="width:auto;padding:4px 10px;font-size:0.8rem;">切換為專人詢問</button>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-top:1px solid #e2e8f0;padding-top:10px;">
+          <div style="font-size:0.88rem;color:#475569;">
             個案填寫網址：<a id="patient-url-link" href="./" target="_blank" rel="noopener" style="color:#1f6f78;font-weight:600;"></a>
             <button type="button" id="copy-url-btn" class="btn btn-secondary btn-sm" style="margin-left:6px;padding:3px 9px;font-size:0.8rem;">複製網址</button>
           </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div class="role-switch" role="group" aria-label="Dashboard Role">
+              <button type="button" class="role-btn active" data-role="doctor">🩺 醫師看診</button>
+              <button type="button" class="role-btn" data-role="nurse">👩‍⚕️ 護理跟診</button>
+            </div>
+            <button type="button" id="toggle-quick-add-btn" class="btn btn-primary btn-sm" style="width:auto;padding:5px 12px;font-size:0.82rem;">＋ 快速登錄個案</button>
+          </div>
         </div>
-        <button type="button" id="toggle-clinic-btn" class="btn btn-secondary btn-sm">切換為關閉填寫</button>
       </section>
+
+      <section id="quick-add-card" class="card hidden" style="border-color:#1f6f78;">
+        <h2 class="card-title" style="font-size:1rem;">＋ 快速登錄現場／電話個案</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div style="flex:1 1 100px;">
+            <label class="hint" for="qa-visit-no" style="display:block;margin-bottom:4px;">看診號</label>
+            <input type="text" id="qa-visit-no" placeholder="如：15" />
+          </div>
+          <div style="flex:2 1 150px;">
+            <label class="hint" for="qa-name" style="display:block;margin-bottom:4px;">姓名</label>
+            <input type="text" id="qa-name" placeholder="如：王小明" />
+          </div>
+          <div style="flex:1 1 120px;">
+            <label class="hint" for="qa-type" style="display:block;margin-bottom:4px;">就診類型</label>
+            <select id="qa-type">
+              <option value="first">初診</option>
+              <option value="followup">複診</option>
+            </select>
+          </div>
+          <div style="flex:1 1 140px;">
+            <label class="hint" for="qa-status" style="display:block;margin-bottom:4px;">初始狀態</label>
+            <select id="qa-status">
+              <option value="初診已問完">初診已問完</option>
+              <option value="初診待問">初診待問</option>
+              <option value="待看診">待看診</option>
+              <option value="看診中">立即進診（看診中）</option>
+            </select>
+          </div>
+          <div style="flex:2 1 180px;">
+            <label class="hint" for="qa-note" style="display:block;margin-bottom:4px;">備註（選填）</label>
+            <input type="text" id="qa-note" placeholder="如：專人已完成訪談" />
+          </div>
+          <button type="button" id="qa-submit-btn" class="btn btn-primary btn-sm" style="width:auto;padding:10px 16px;">確認登錄</button>
+        </div>
+      </section>
+
+      <div id="stats-bar" class="stats-bar">
+        <span>看診中 <strong id="stat-active">0</strong></span>
+        <span>待看／已問完 <strong id="stat-waiting">0</strong></span>
+        <span>初診待問 <strong id="stat-first-pending">0</strong></span>
+        <span>測驗中 <strong id="stat-paused">0</strong></span>
+        <span>已看診 <strong id="stat-done">0</strong></span>
+        <span style="margin-left:auto;">平均等待 <strong id="stat-avg-wait">-</strong> 分 ｜ 平均看診 <strong id="stat-avg-consult">-</strong> 分</span>
+      </div>
 
       <div class="toolbar">
         <div class="inline-row">
           <select id="filter-status" style="width:auto;">
-            <option value="待看診">僅顯示：待看診</option>
+            <option value="active">僅顯示：未結案（看診／待看／測驗）</option>
             <option value="all">顯示全部</option>
             <option value="已看診">僅顯示：已看診</option>
           </select>
@@ -56,7 +119,7 @@
     </main>
   </div>
 
-  <script src="./assets/config.js?v=16"></script>
-  <script src="./assets/doctor.js?v=16"></script>
+  <script src="./assets/config.js?v=19"></script>
+  <script src="./assets/doctor.js?v=19"></script>
 </body>
 </html>

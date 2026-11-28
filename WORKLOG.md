@@ -28,10 +28,10 @@
 ### 正式網址與維運資訊
 - **家長／個案填寫網址（QR code）**：https://8807p3.github.io/opdcase/
 - **醫師端診間看板網址**：https://8807p3.github.io/opdcase/doctor.html
-- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@19`）
+- **GAS Web App 部署**：`AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`（`@20`）
 - **日常更新指令**：
   - 前端修改：`git add . && git commit -m "update" && git push`
-  - GAS 修改：`cd gas && clasp push -f && clasp deploy -i AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`
+  - GAS 修改（Windows PowerShell 請用 `clasp.cmd`）：`cd gas; & "$env:APPDATA\npm\clasp.cmd" push -f; & "$env:APPDATA\npm\clasp.cmd" deploy -i AKfycbw6lYZ5FE2wI3M8dv4DIaop8LFl1ywR_f6vWzobddW9egXrM-dblZU4Qk8FKMbcxHxb`
 
 ---
 
@@ -47,3 +47,24 @@
 3. **AI 推薦命中率與回應速度優化**（`gas/Code.gs`、`assets/app.js`、`assets/search.js`）
    - AI 候選文章池由 3 篇 × 650 字擴增為 **5 篇 × 1200 字**，並於 `SYNONYMS` 補齊妥瑞／抽動、焦慮／強迫、拒學、情緒崩潰、3C／電玩等門診常用同義詞。
    - `gemini-4-hydrogen` 設定 `thinkingConfig.thinkingLevel = "low"`、備援 `gemini-2.5-flash` 設定 `thinkingBudget = 0`，送出回應時間由 ~30 秒降至 ~12 秒（GAS 部署更新至 `@19`）。
+
+---
+
+## 2026-11-28｜初診雙版本分流、醫師／護理共用看板與看診效率計時系統
+
+### 完成項目
+1. **試算表 28 欄新版架構與 `Config` 擴充**（`gas/Code.gs`）
+   - 自動備份舊版 15 欄工作表（`門診登記_舊版_MMdd_HHmm`），建立 28 欄新版結構：拆出獨立 `就診類型`、`叫號順序`（預留日後排號用）、`看診號`、`姓名`，新增 `初診問完時間`、`開始看診時間`、`結束看診時間`、`等待時間(分)`、`看診時間(分)`（扣除測驗暫離）、`測驗暫離(分)`、`總停留時間(分)`、`診間屬性`、`診間備註`、`計時狀態(系統)`。
+   - `Config` 分頁自動補齊 `FIRST_VISIT_CHILD_URL`、`FIRST_VISIT_ADULT_URL`、`DOCTOR_TAGS` 與 `MSG_*` 前台客製提示語（保留既有 `DOCTOR_PIN` 且僅白名單公開至 `?action=status`）。
+2. **家長端初診分流與雙版本引導**（`index.html`、`assets/app.js`、`assets/i18n.js`）
+   - 新增「複診／初診」分流：選「初診」自動隱藏複診用藥題，並依後台 `firstVisitMode` 顯示「專人詢問報到」或「兒童／青少年版 vs 成人／大人版」線上初診表單連結按鈕（防 iOS Safari / LINE 彈窗攔截），越語介面自動附上「初診表單目前僅有中文版」提示並於看板標記 `🇻🇳 越語`。
+   - 支援繁體中文版即時套用試算表 `Config` 的 `MSG_*` 客製提示語。
+3. **醫師／護理共用看板與接力計時**（`doctor.html`、`assets/doctor.js`、`assets/style.css`）
+   - 頂端新增 **初診模式開關**（`📱 掃碼自填` ⇄ `👩‍⚕️ 專人詢問`）、**看板視角切換**（`🩺 醫師看診` ⇄ `👩‍⚕️ 護理跟診`，記憶於 `localStorage`）與 **＋快速登錄個案**。
+   - 完整狀態流：`初診待問` → `初診已問完`／`待看診` → `測驗／問卷中`（暫停累計）→ `測驗完成待看` → `看診中`（置頂即時計時 `mm:ss`、點下一位自動結案上一位）→ `已看診`。
+   - 新增頂端即時統計列（各狀態人數、平均等待／平均看診分鐘數）及醫師端可點選「診間屬性標籤」＋「診間備註 (Free Typing)」。
+   - 部署 GAS 至版本 `@20` 並同步更新 `README.md`。
+
+### 待辦／保留事項
+- 年齡／學齡選項暫緩（先以現況實際跑診觀察）。
+- 試算表已預留 `叫號順序` 欄位，後續若有需要可無痛加上「排下一位」或拖曳排序。
