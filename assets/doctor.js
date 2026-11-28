@@ -869,41 +869,34 @@
             : "";
 
         const activeTagSet = new Set(r.doctorTags || []);
-        const doctorMetaHtml = isDoctor
-          ? `<div class="doctor-meta-box">
-              <div class="tag-chips">
-                ${doctorTags
-                  .map(
-                    (tag) =>
-                      `<button type="button" class="tag-chip ${
-                        activeTagSet.has(tag) ? "active" : ""
-                      }" data-tag-id="${escapeHtml(r.id)}" data-tag="${escapeHtml(
-                        tag
-                      )}">${escapeHtml(tag)}</button>`
-                  )
-                  .join("")}
-              </div>
-              <div class="doctor-note-row">
+        const doctorMetaHtml = `<div class="doctor-meta-box">
+            <div class="tag-chips" ${isDoctor ? "" : 'style="margin-bottom:0;"'}>
+              ${doctorTags
+                .map(
+                  (tag) =>
+                    `<button type="button" class="tag-chip ${
+                      activeTagSet.has(tag) ? "active" : ""
+                    }" data-tag-id="${escapeHtml(r.id)}" data-tag="${escapeHtml(
+                      tag
+                    )}">${escapeHtml(tag)}</button>`
+                )
+                .join("")}
+            </div>
+            ${
+              isDoctor
+                ? `<div class="doctor-note-row">
                 <input type="text" class="doctor-note-input" data-dnote-id="${escapeHtml(
                   r.id
                 )}" value="${escapeHtml(
-              r.doctorNote || ""
-            )}" placeholder="診間備註（選填，按 Enter 或點儲存寫入試算表）" />
+                    r.doctorNote || ""
+                  )}" placeholder="診間備註（選填，按 Enter 或點儲存寫入試算表）" />
                 <button type="button" class="btn btn-secondary btn-sm save-dnote-btn" data-save-dnote-id="${escapeHtml(
                   r.id
                 )}" style="width:auto;padding:6px 12px;font-size:0.8rem;">儲存</button>
-              </div>
-            </div>`
-          : r.doctorTags && r.doctorTags.length > 0
-          ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${r.doctorTags
-              .map(
-                (t) =>
-                  `<span class="tag" style="background:#e2e8f0;color:#334155;">#${escapeHtml(
-                    t
-                  )}</span>`
-              )
-              .join("")}</div>`
-          : "";
+              </div>`
+                : ""
+            }
+          </div>`;
 
         return `
         <article class="patient-card ${
