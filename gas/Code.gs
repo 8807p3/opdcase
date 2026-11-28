@@ -1013,15 +1013,27 @@ function doPost(e) {
       return jsonResponse_({
         ok: true,
         pinRequired: getDoctorPin_() !== "",
+        firstVisitMode: getFirstVisitMode_(),
+        clinicOpen: isClinicOpen_(),
       });
     }
 
     if (payload.action === "verifyPin") {
       const authErr = requireDoctorAuth_(payload.pin);
       if (authErr) return authErr;
+      if (
+        payload.firstVisitMode === "self" ||
+        payload.firstVisitMode === "staff"
+      ) {
+        PropertiesService.getScriptProperties().setProperty(
+          "FIRST_VISIT_MODE",
+          payload.firstVisitMode
+        );
+      }
       return jsonResponse_({
         ok: true,
         pinRequired: getDoctorPin_() !== "",
+        firstVisitMode: getFirstVisitMode_(),
       });
     }
 

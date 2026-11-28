@@ -5,6 +5,8 @@
   const pinInput = document.getElementById("pin-input");
   const pinBtn = document.getElementById("pin-btn");
   const pinError = document.getElementById("pin-error");
+  const gateFvCurrent = document.getElementById("gate-fv-current");
+  const gateFvBtns = Array.from(document.querySelectorAll(".gate-fv-btn"));
   const dashboard = document.getElementById("dashboard");
 
   const modeNotice = document.getElementById("mode-notice");
@@ -200,6 +202,21 @@
     }
   }
 
+  let gateSelectedFvMode = "";
+
+  function syncGateFvUi(selectedMode, serverMode) {
+    const modeToSelect =
+      selectedMode === "staff" || selectedMode === "self" ? selectedMode : "self";
+    gateSelectedFvMode = modeToSelect;
+    gateFvBtns.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.fv === modeToSelect);
+    });
+    if (gateFvCurrent && serverMode) {
+      gateFvCurrent.textContent =
+        serverMode === "staff" ? "目前為 👩‍⚕️ 專人詢問" : "目前為 📱 掃碼自填";
+    }
+  }
+
   function lockDashboard(errMsg) {
     stopTimers();
     sessionPin = "";
@@ -209,6 +226,7 @@
     dashboard.classList.add("hidden");
     pinGate.classList.remove("hidden");
     pinInput.value = "";
+    syncGateFvUi(firstVisitMode, firstVisitMode);
     if (errMsg) {
       pinError.textContent = errMsg;
       pinError.classList.remove("hidden");
@@ -281,16 +299,23 @@
     pinBtn.textContent = "驗證中…";
     pinError.classList.add("hidden");
     try {
+      const bodyPayload = { action: "verifyPin", pin: pinValue };
+      if (!isSilentAuto && (gateSelectedFvMode === "self" || gateSelectedFvMode === "staff")) {
+        bodyPayload.firstVisitMode = gateSelectedFvMode;
+      }
       const resp = await fetch(gasUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "verifyPin", pin: pinValue }),
+        body: JSON.stringify(bodyPayload),
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const json = await resp.json();
       if (json.ok) {
         sessionPin = pinValue;
         pinRequired = json.pinRequired !== false;
+        if (json.firstVisitMode === "staff" || json.firstVisitMode === "self") {
+          firstVisitMode = json.firstVisitMode;
+        }
         try {
           if (pinRequired && pinValue) {
             sessionStorage.setItem(PIN_STORAGE_KEY, pinValue);
@@ -299,6 +324,7 @@
           }
         } catch (e) {}
         unlockDashboard();
+        return true;
       } else {
         if (isSilentAuto) {
           try {
@@ -309,12 +335,14 @@
           pinError.classList.remove("hidden");
           pinInput.select();
         }
+        return false;
       }
     } catch (err) {
       if (!isSilentAuto) {
         pinError.textContent = "連線驗證失敗，請檢查網路或 GAS 部署。";
         pinError.classList.remove("hidden");
       }
+      return false;
     } finally {
       pinBtn.disabled = false;
       pinBtn.textContent = "進入看板";
@@ -330,6 +358,12 @@
     } catch (e) {}
     roleBtns.forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.role === currentRole);
+    });
+
+    gateFvBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        syncGateFvUi(btn.dataset.fv, null);
+      });
     });
 
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
@@ -355,8 +389,8 @@
     } catch (e) {}
 
     if (savedPin) {
-      await verifyAndEnter(savedPin, true);
-      return;
+      const entered = await verifyAndEnter(savedPin, true);
+      if (entered) return;
     }
 
     pinBtn.disabled = true;
@@ -368,10 +402,16 @@
         body: JSON.stringify({ action: "checkPinStatus" }),
       });
       const json = await resp.json();
-      if (json.ok && json.pinRequired === false) {
-        pinRequired = false;
-        unlockDashboard();
-        return;
+      if (json.ok) {
+        if (json.firstVisitMode === "staff" || json.firstVisitMode === "self") {
+          firstVisitMode = json.firstVisitMode;
+          syncGateFvUi(firstVisitMode, firstVisitMode);
+        }
+        if (json.pinRequired === false) {
+          pinRequired = false;
+          unlockDashboard();
+          return;
+        }
       }
     } catch (err) {
       // Keep PIN gate visible

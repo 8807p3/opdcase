@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>診間即時看板｜兒青門診</title>
-  <link rel="stylesheet" href="./assets/style.css?v=20" />
+  <link rel="stylesheet" href="./assets/style.css?v=23" />
 </head>
 <body>
   <div class="container wide">
@@ -13,10 +13,19 @@
       <p>自動同步候診個案報到與狀態接力，支援醫師看診／護理跟診視角切換與時間統計。</p>
     </header>
 
-    <section id="pin-gate" class="card" style="max-width:400px;margin:30px auto;">
+    <section id="pin-gate" class="card" style="max-width:420px;margin:30px auto;">
       <h2 class="card-title">🔒 請輸入診間看板密碼</h2>
       <div class="field-group">
         <input type="password" id="pin-input" placeholder="請輸入密碼" />
+      </div>
+      <div class="field-group" style="margin-bottom:14px;">
+        <label class="field-label" style="font-size:0.88rem;margin-bottom:6px;">
+          今日初診模式：<span id="gate-fv-current" class="hint" style="font-weight:400;">讀取中…</span>
+        </label>
+        <div class="role-switch" style="width:100%;display:flex;" role="group" aria-label="First Visit Mode">
+          <button type="button" class="gate-fv-btn active" data-fv="self">📱 掃碼自填</button>
+          <button type="button" class="gate-fv-btn" data-fv="staff">👩‍⚕️ 專人詢問</button>
+        </div>
       </div>
       <div id="pin-error" class="alert alert-danger hidden" style="margin-bottom:12px;">
         密碼不正確，請再試一次。
@@ -119,7 +128,7 @@
     </main>
   </div>
 
-  <script src="./assets/config.js?v=22"></script>
-  <script src="./assets/doctor.js?v=22"></script>
+  <script src="./assets/config.js?v=23"></script>
+  <script src="./assets/doctor.js?v=23"></script>
 </body>
 </html>

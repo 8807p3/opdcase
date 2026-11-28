@@ -573,7 +573,8 @@ textarea {
   background: #f8fafc;
 }
 
-.role-btn {
+.role-btn,
+.gate-fv-btn {
   border: none;
   background: transparent;
   padding: 6px 12px;
@@ -583,7 +584,13 @@ textarea {
   cursor: pointer;
 }
 
-.role-btn.active {
+.gate-fv-btn {
+  flex: 1;
+  padding: 9px 10px;
+}
+
+.role-btn.active,
+.gate-fv-btn.active {
   background: var(--primary);
   color: #fff;
 }
