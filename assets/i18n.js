@@ -33,7 +33,8 @@ window.CLINIC_I18N = {
     btnFirstVisitChild: "👶 兒童／青少年初診（報到並填寫表單）",
     btnFirstVisitAdult: "🧑 成人／大人初診（報到並填寫表單）",
     statusFirstVisitSent: "✅ 初診報到已完成！請在候診區稍候。",
-    btnOpenFirstVisitForm: "👉 前往填寫線上初診表單",
+    statusFirstVisitRedirecting: "✅ 報到完成！正在自動開啟初診表單，請稍候…",
+    btnOpenFirstVisitForm: "👉 若畫面未自動跳轉，請點此開啟初診表單",
     msgFirstVisitMissingUrl:
       "已為您完成初診報到！請向診間或護理人員索取初診表單連結／協助。",
     sumVisitFirst: "🆕 初診報到",
@@ -162,7 +163,8 @@ window.CLINIC_I18N = {
     btnFirstVisitChild: "👶 Trẻ em / Vị thành niên (Đăng ký & mở biểu mẫu)",
     btnFirstVisitAdult: "🧑 Người lớn (Đăng ký & mở biểu mẫu)",
     statusFirstVisitSent: "✅ Đã đăng ký khám lần đầu! Vui lòng ngồi chờ tại khu vực đợi khám.",
-    btnOpenFirstVisitForm: "👉 Mở biểu mẫu khám lần đầu (tiếng Trung)",
+    statusFirstVisitRedirecting: "✅ Đăng ký xong! Đang tự động mở biểu mẫu khám lần đầu…",
+    btnOpenFirstVisitForm: "👉 Nếu chưa tự chuyển trang, bấm vào đây để mở biểu mẫu",
     msgFirstVisitMissingUrl:
       "Đã hoàn tất đăng ký! Vui lòng liên hệ nhân viên phòng khám để nhận hướng dẫn biểu mẫu khám lần đầu.",
     sumVisitFirst: "🆕 Khám lần đầu",

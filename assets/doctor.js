@@ -622,7 +622,7 @@
       return {
         cardClass: "is-paused-test",
         badgeClass: "badge-paused-test",
-        badgeText: "📝 測驗／問卷中",
+        badgeText: "📝 去測驗／問卷",
       };
     }
     if (r.status === "測驗完成待看") {
@@ -791,10 +791,6 @@
           liveTimerHtml = `<span class="live-timer-pill" data-kind="consult" data-base="${
             r.timing.consultMs || 0
           }" data-start="${r.timing.segStartMs}">⏱ 看診中 00:00</span>`;
-        } else if (r.status === "測驗／問卷中" && r.timing?.pauseStartMs) {
-          liveTimerHtml = `<span class="live-timer-pill is-pause" data-kind="pause" data-base="${
-            r.timing.pauseMs || 0
-          }" data-start="${r.timing.pauseStartMs}">📝 測驗計時 00:00</span>`;
         }
 
         const timeMetrics = [];

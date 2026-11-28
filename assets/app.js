@@ -679,12 +679,18 @@
     submitStatus.style.fontWeight = "";
     currentRecordId = res.id || "";
 
+    const targetUrl =
+      firstVisitMode === "self"
+        ? target === "adult"
+          ? (publicConfig.FIRST_VISIT_ADULT_URL || "").trim()
+          : (publicConfig.FIRST_VISIT_CHILD_URL || "").trim()
+        : "";
+
     if (res.ok) {
       submitStatus.className = "alert alert-info";
-      submitStatus.textContent = getTextOrOverride(
-        "statusFirstVisitSent",
-        "MSG_FIRST_VISIT_DONE"
-      );
+      submitStatus.textContent = targetUrl
+        ? t("statusFirstVisitRedirecting")
+        : getTextOrOverride("statusFirstVisitSent", "MSG_FIRST_VISIT_DONE");
     } else if (res.reason === "closed") {
       resultView.classList.add("hidden");
       formView.classList.add("hidden");
@@ -699,10 +705,6 @@
     }
 
     if (firstVisitLinkCard && firstVisitMode === "self") {
-      const targetUrl =
-        target === "adult"
-          ? (publicConfig.FIRST_VISIT_ADULT_URL || "").trim()
-          : (publicConfig.FIRST_VISIT_CHILD_URL || "").trim();
       firstVisitLinkCard.classList.remove("hidden");
       if (firstVisitResultViNote) {
         const viNotice = t("msgFirstVisitViNote");
@@ -716,6 +718,9 @@
           firstVisitFormLink.classList.remove("hidden");
         }
         if (firstVisitMissingUrl) firstVisitMissingUrl.classList.add("hidden");
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 300);
       } else {
         if (firstVisitFormLink) firstVisitFormLink.classList.add("hidden");
         if (firstVisitMissingUrl) {
