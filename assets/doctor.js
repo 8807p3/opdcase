@@ -228,20 +228,30 @@
     startDashboard();
   }
 
-  async function doctorPost(payload) {
+  async function doctorPost(payload, timeoutMs = 25000) {
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
-    const resp = await fetch(gasUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ ...payload, pin: sessionPin }),
-    });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const json = await resp.json();
-    if (json.unauthorized) {
-      lockDashboard("密碼已變更或驗證失效，請重新輸入。");
-      throw new Error("unauthorized");
+    const controller =
+      typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timerId = controller
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+    try {
+      const resp = await fetch(gasUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ ...payload, pin: sessionPin }),
+        signal: controller ? controller.signal : undefined,
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const json = await resp.json();
+      if (json.unauthorized) {
+        lockDashboard("密碼已變更或驗證失效，請重新輸入。");
+        throw new Error("unauthorized");
+      }
+      return json;
+    } finally {
+      if (timerId) clearTimeout(timerId);
     }
-    return json;
   }
 
   function applyServerState(json) {
@@ -1107,6 +1117,7 @@
   }
 
   async function toggleClinicOpen() {
+    if (toggleClinicBtn.disabled) return;
     const nextOpen = !clinicOpen;
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
     if (!gasUrl) {
@@ -1115,23 +1126,28 @@
       return;
     }
     toggleClinicBtn.disabled = true;
+    toggleClinicBtn.textContent = "切換中…";
+    mutationEpoch++;
     try {
-      const json = await doctorPost({ action: "setClinicOpen", open: nextOpen });
-      if (json.ok) {
-        mutationEpoch++;
-        clinicOpen = Boolean(json.clinicOpen);
-        renderClinicStatus();
-      }
+      const json = await doctorPost(
+        { action: "setClinicOpen", open: nextOpen },
+        12000
+      );
+      if (!json.ok) throw new Error(json.error || "切換失敗");
+      mutationEpoch++;
+      clinicOpen = Boolean(json.clinicOpen);
     } catch (err) {
       if (err.message !== "unauthorized") {
         alert("切換狀態失敗，請稍後再試");
       }
     } finally {
       toggleClinicBtn.disabled = false;
+      renderClinicStatus();
     }
   }
 
   async function toggleFirstVisitMode() {
+    if (toggleFvModeBtn.disabled) return;
     const nextMode = firstVisitMode === "staff" ? "self" : "staff";
     const gasUrl = (window.CLINIC_CONFIG?.GAS_URL || "").trim();
     if (!gasUrl) {
@@ -1140,22 +1156,23 @@
       return;
     }
     toggleFvModeBtn.disabled = true;
+    toggleFvModeBtn.textContent = "切換中…";
+    mutationEpoch++;
     try {
-      const json = await doctorPost({
-        action: "setFirstVisitMode",
-        mode: nextMode,
-      });
-      if (json.ok) {
-        mutationEpoch++;
-        firstVisitMode = json.firstVisitMode === "staff" ? "staff" : "self";
-        renderFirstVisitMode();
-      }
+      const json = await doctorPost(
+        { action: "setFirstVisitMode", mode: nextMode },
+        12000
+      );
+      if (!json.ok) throw new Error(json.error || "切換失敗");
+      mutationEpoch++;
+      firstVisitMode = json.firstVisitMode === "staff" ? "staff" : "self";
     } catch (err) {
       if (err.message !== "unauthorized") {
         alert("切換初診模式失敗，請稍後再試");
       }
     } finally {
       toggleFvModeBtn.disabled = false;
+      renderFirstVisitMode();
     }
   }
 
